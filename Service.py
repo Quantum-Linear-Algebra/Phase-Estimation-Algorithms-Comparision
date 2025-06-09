@@ -11,7 +11,40 @@ def empty(filename):
 
 def create_hardware_backend():
     '''
-    Creates 
+    Creates a hardware backend using the inputted Qiskit user data.
+
+    Returns:
+     - backend: the specificed backend as a BackendV2 Qiskit Object
+    '''
+    filename = "Service.pkl" 
+    if empty(filename):
+        token    = input("Enter API Token:")
+        channel  = input("Enter Channel:")
+        instance = input("Enter Instance:")
+        hardware_name = input("Enter Hardware Backend Name:")
+        with open(filename, 'wb') as file:
+            pickle.dump([token, channel, instance, hardware_name], file)
+    else:
+        with open(filename, 'rb') as file:
+            [token, channel, instance, hardware_name] = pickle.load(file)
+    try:
+        print("Creating backend.")
+        service = QRS(channel=channel, instance=instance, token=token)
+        backend = service.backend(hardware_name)
+        print("Backend created.")
+        return backend
+    except:
+        print("One or more of the provided service parameters are incorrect. Try rechecking your IBM Quantum Platform.")
+        if not empty(filename): remove(filename)
+        exit()
+
+    
+def create_service():
+    '''
+    Creates a hardware backend using the inputted Qiskit user data.
+
+    Returns:
+     - service: the specificed service as a Qiskit Service Object
     '''
     filename = "Service.pkl" 
     if empty(filename):
@@ -27,9 +60,8 @@ def create_hardware_backend():
     try:
         print("Creating Service.")
         service = QRS(channel=channel, instance=instance, token=token)
-        backend = service.backend('ibm_rensselaer')
         print("Service saved.")
-        return backend
+        return service
     except:
         print("One or more of the provided service parameters are incorrect. Try rechecking your IBM Quantum Platform.")
         if not empty(filename): remove(filename)

@@ -202,7 +202,6 @@ def create_hamiltonian(parameters, scale=True, show_steps=False):
         largest_eigenvalue = np.max(abs(val)) # use lambda_new when the above code segment
         if show_steps: print("Largest Eigenvalue =", largest_eigenvalue)
         parameters["r_scaling"] = largest_eigenvalue/scale_factor
-        print(parameters["r_scaling"])
         H *= scale_factor/largest_eigenvalue
         H += shifting*np.eye(n)
         if show_steps:
