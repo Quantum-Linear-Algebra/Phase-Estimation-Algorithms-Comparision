@@ -301,14 +301,13 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def exp_vals_circuit_info(Dt, K, parameters):
+def exp_vals_circuit_info(Dt, parameters):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
 
     Parameters:
      - Dt: the time step
-     - K: the maximum number of iteration
      - parameters: the parmeters for the
                    hamiltonian contruction
     
@@ -328,20 +327,19 @@ def exp_vals_circuit_info(Dt, K, parameters):
         coupling = 1
         if 'scaling' in parameters: scaling = parameters['scaling']
         else: scaling = 1
-        gates = generate_TFIM_gates(parameters['sites'], K, Dt, parameters['g'], scaling, coupling, parameters['trotter'], '../f3cpp')
+        gates = generate_TFIM_gates(parameters['sites'], parameters['num_timesteps'], Dt, parameters['g'], scaling, coupling, parameters['trotter'], '../f3cpp')
     else:
-        for i in range(K):
+        for i in range(parameters['num_timesteps']):
             mat = expm(-1j*ham*Dt*i)
             controlled_U = UnitaryGate(mat).control(annotated="yes")
             gates.append(controlled_U)
     return gates, statevector
 
-def generate_exp_vals(K, parameters):
+def generate_exp_vals(parameters):
     '''
     Generate the exp_vals spectrum
 
     Parameters:
-     - K: the maximum number of iteration
      - parameters: the parmeters for the
                    hamiltonian contruction
 
@@ -355,17 +353,16 @@ def generate_exp_vals(K, parameters):
     ground_state = vecs[:,0]
     sv = make_overlap(ground_state, parameters['overlap'])
     exp_vals = []
-    for k in range(K):
-        exp_vals.append(np.sum(np.exp(-1j*E*k*Dt)*np.abs(sv)**2))
+    for i in range(parameters['num_timesteps']):
+        exp_vals.append(np.sum(np.exp(-1j*E*i*Dt)*np.abs(sv)**2))
     return exp_vals
 
-def transpile_exp_vals(Dt, K, backend, parameters, W='Re'):
+def transpile_exp_vals(parameters, Dt, backend, W='Re'):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
     Parameters:
      - Dt: the time step
-     - K: the maximum number of iteration
      - backend: the backend to transpile on
      - parameters: the parmeters for the hamiltonian
                    contruction
@@ -375,9 +372,13 @@ def transpile_exp_vals(Dt, K, backend, parameters, W='Re'):
     '''
 
     trans_qcs = []
-    gates, statevector = exp_vals_circuit_info(Dt, K, parameters)
+    gates, statevector = exp_vals_circuit_info(Dt, parameters)
     for controlled_U in gates:
         trans_qcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
+    return trans_qcs
+
+def transpile_Hexp_vals(parameters, Dt, backend):
+    trans_qcs =[]
     return trans_qcs
 
 def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location):
