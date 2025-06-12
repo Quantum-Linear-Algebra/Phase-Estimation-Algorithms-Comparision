@@ -53,11 +53,11 @@ def run(parameters, backend):
             trans_qcs.append(qcs)
         print()
         trans_qcs = sum(trans_qcs, []) # flatten list
+        sampler = Sampler(backend)
         if parameters['comp_type'] == 'H':
             job_correct_size = False
             jobs_tqcs = [trans_qcs]
             # The circuits are divided as into as little jobs as possible
-            sampler = Sampler(backend)
             while(not job_correct_size):
                 jobs = []
                 job_correct_size = True

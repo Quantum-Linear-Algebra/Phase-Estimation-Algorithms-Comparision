@@ -3,6 +3,9 @@ from qiskit_aer.noise import NoiseModel
 from numpy import pi
 from Service import create_hardware_backend
 from sys import exit
+import sys
+sys.path.append('0-Data')
+from Data_Generator_Helper import create_hamiltonian
 
 def check(parameters):
     print("Setting up parameters.")
@@ -65,6 +68,7 @@ def check(parameters):
             parameters.pop(key)
     print("Parameters are setup.")
     print(parameters)
+    create_hamiltonian(parameters)
     return backend
 
 

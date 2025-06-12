@@ -5,7 +5,7 @@ import sys
 from scipy.linalg import eigh
 from scipy.fft import fft, fftshift, fftfreq
 
-paths = './..', './../0-Data'
+paths = '.', './0-Data'
 for path in paths:
     if path not in sys.path:
         sys.path.append(path)
@@ -29,6 +29,7 @@ def run(parameters):
     plt.title("Overlap")
     plt.bar(range(len(vecs)),[np.linalg.norm(sv@vecs[i]) for i in range(len(vecs))], width=.6)
     plt.xticks(range(len(vecs)), [f'{i:.3}' for i in E])
+    plt.savefig("2-Graphing/Graphs/"+make_filename(parameters)+"_Spectrum.png")
     plt.show()
     print(E)
 
@@ -51,7 +52,7 @@ def run(parameters):
     plt.title("Fourier Transform of Expectation Value with Dt="+str(parameters['Dt'])+" and overlap="+str(parameters['overlap']))
     plt.savefig("2-Graphing/Graphs/"+make_filename(parameters)+"_Fourier_Transform_Expectation_Value.png")
     plt.show()
-
+    
     plt.figure()
     use_shots = False
     if use_shots: total_shots = [w*parameters['shots'] for w in observables]
