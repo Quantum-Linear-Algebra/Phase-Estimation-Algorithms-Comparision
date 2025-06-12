@@ -2,17 +2,24 @@ from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from numpy import pi
 from Service import create_hardware_backend
-
+from sys import exit
 
 def check(parameters):
     print("Setting up parameters.")
+    
+    # PREPROCESSING
+    parameters['comp_type'] = parameters['comp_type'][0].upper()
+    parameters['system']    = parameters['system'][0:3].upper()
+
     # parameter checking (if there's an error change parameters in question)
     assert(parameters['comp_type'] == 'C' or parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J')
     assert(parameters['system'] == "TFI" or parameters['system'] == "SPI" or parameters['system'] == "HUB" or parameters['system'] == "H_2")
     if 'overlap' not in parameters: parameters['overlap'] = 1
     assert(0<=parameters['overlap']<=1)
+    for algo in parameters['algorithms']:
+        assert(algo in ['VQPE','ODMD','QCELS'])
 
-    variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps']
+    variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms']
     if parameters['comp_type'] != 'C': variables.append('shots')
     # verify system parameters are setup correctly
     if parameters['system'] == "TFI":
