@@ -9,7 +9,7 @@ from numpy import pi
 import Parameters as param
 from Parameters import make_filename
 import Data_Generator as data
-import Algorithm_Executor as algo
+import Algorithm_Manager as algo
 import Graph_Generator as graph_gen
 
 parameters = {}
@@ -17,7 +17,7 @@ parameters = {}
 
 # Generic Parameters
 parameters['comp_type']     = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['num_timesteps'] = 100
+parameters['num_timesteps'] = 1
 parameters['sites']         = 5
 parameters['Dt']            = 0.05
 parameters['shots']         = 10**2
@@ -31,7 +31,7 @@ parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 # Transverse Field Ising Model Parameters
 parameters['g'] = 4 # magnetic field strength (TFIM)
 parameters['method_for_model'] = 'F' # OPTIONS: F3C, Qiskit
-parameters['trotter'] = 1000 # only with method_for_model = F3C
+parameters['trotter'] = 10 # only with method_for_model = F3C
 
 # Spin Model Parameters
 parameters['J'] = 4 # coupling strength (SPIN)
