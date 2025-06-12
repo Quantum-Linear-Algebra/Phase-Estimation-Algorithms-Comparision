@@ -13,7 +13,7 @@ for path in paths:
 from Parameters import make_filename
 from Data_Generator_Helper import create_hamiltonian, make_overlap
 
-def run(parameters, ):
+def run(parameters):
     filename = make_filename(parameters, add_shots=True)+".pkl"
     with open("0-Data/Expectation_Values/"+filename, 'rb') as file:
         exp_vals = pickle.load(file)
