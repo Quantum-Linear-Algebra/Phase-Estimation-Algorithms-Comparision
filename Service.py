@@ -2,6 +2,7 @@ import pickle
 from qiskit_ibm_runtime import QiskitRuntimeService as QRS
 from os import remove
 from os.path import getsize
+from sys import exit
 
 def empty(filename):
     try:
@@ -36,7 +37,7 @@ def create_hardware_backend():
     except:
         print("One or more of the provided service parameters are incorrect. Try rechecking your IBM Quantum Platform.")
         if not empty(filename): remove(filename)
-        exit()
+        exit(1)
 
     
 def create_service():
