@@ -108,8 +108,6 @@ def run(parameters, backend):
                 results.append(result)
             print("Loaded data from job:", job_id)
         print()
-
-    create_hamiltonian(parameters)
     
     exp_vals = []
     if parameters['comp_type'] == 'C':

@@ -7,7 +7,7 @@ for path in paths:
 from numpy import pi
 
 import Parameters as param
-import Algorithm_Executor as algo
+import Algorithm_Manager as algo
 
 parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters

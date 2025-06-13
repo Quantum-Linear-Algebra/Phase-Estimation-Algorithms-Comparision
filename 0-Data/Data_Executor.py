@@ -39,4 +39,5 @@ parameters['distance'] = .5
 parameters['algorithms'] = ['ODMD'] # OPTIONS: ODMD, VQPE, QCELS, ML-QCELS
 
 backend = param.check(parameters)
-data.save_job_ids_params(parameters)
+data.run(parameters)
+# data.save_job_ids_params(parameters)

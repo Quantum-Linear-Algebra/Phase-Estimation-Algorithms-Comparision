@@ -12,7 +12,6 @@ def run(parameters):
     with open("0-Data/Expectation_Values/"+filename, 'rb') as file:
         exp_vals = pickle.load(file)
 
-    exp_vals = [i.real for i in exp_vals]
     # Algorithmic Parameters
     svd_threshold = 10**-3
 
@@ -20,7 +19,7 @@ def run(parameters):
     Dt = parameters['Dt']
     print("Using data from time step:", Dt)
     est_E_0s = []
-    est_E_0s = ODMD(exp_vals, Dt, svd_threshold, num_timesteps, show_steps=False) 
+    est_E_0s = ODMD(exp_vals, Dt, svd_threshold, num_timesteps, show_steps=False)
     # readjust energy to what it originially was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']

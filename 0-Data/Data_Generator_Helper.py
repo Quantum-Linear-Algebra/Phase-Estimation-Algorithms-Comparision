@@ -173,9 +173,10 @@ def create_hamiltonian(parameters, scale=True, show_steps=False):
         H = tapered_mapper.map(fer_op)
         H = H.to_matrix()
 
+    val, vec = eigh(H)
+    real_E_0 = val[0]
+
     if scale:
-        val, vec = eigh(H)
-        real_E_0 = val[0]
         if show_steps:
             print("Original eigenvalues:", val)
             print("Original eigenvectors:\n", vec)
@@ -230,8 +231,8 @@ def hadamard_test(controlled_U, statevector, W = 'Re', shots=100):
     aer_sim = AerSimulator(noise_model=NoiseModel())
     trans_qc = create_hadamard_test(aer_sim, controlled_U, statevector, W = W)
     counts = aer_sim.run(trans_qc, shots = shots).result().get_counts()
-    re = calculate_exp_vals(counts, shots)
-    return re
+    exp_val = calculate_exp_vals(counts, shots)
+    return exp_val
 
 def create_hadamard_test(backend, controlled_U, statevector, W = 'Re'):
     '''
