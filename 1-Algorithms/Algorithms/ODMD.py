@@ -98,6 +98,6 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, show_steps = Fal
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)
         if precision!=0 and check_convergence(est_E_0s, precision): break
-    return est_E_0s
+    return est_E_0s, [(i*skipping + 1)*2 for i in range(len(s_k)//skipping)]
 
 

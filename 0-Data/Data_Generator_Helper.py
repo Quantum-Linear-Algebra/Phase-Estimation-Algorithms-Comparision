@@ -353,9 +353,12 @@ def generate_exp_vals(parameters):
     E, vecs = eigh(H)
     ground_state = vecs[:,0]
     sv = make_overlap(ground_state, parameters['overlap'])
+    spectrum = []
+    for i in range(len(vecs)):
+        spectrum.append(np.abs(sv.conj().T@vecs[:,i])**2)
     exp_vals = []
     for i in range(parameters['num_timesteps']):
-        exp_vals.append(np.sum(np.exp(-1j*E*i*Dt)*np.abs(sv)**2))
+        exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
     return exp_vals
 
 def transpile_exp_vals(parameters, Dt, backend, W='Re'):
