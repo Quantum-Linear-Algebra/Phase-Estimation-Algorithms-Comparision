@@ -1,6 +1,7 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from numpy import pi
+from scipy.linalg import eigh
 from Service import create_hardware_backend
 from sys import exit
 import sys
@@ -8,7 +9,7 @@ sys.path.append('0-Data')
 from Data_Generator_Helper import create_hamiltonian
 
 def check(parameters):
-    print("Setting up parameters.")
+    print('Setting up parameters.')
     
     # PREPROCESSING
     parameters['comp_type'] = parameters['comp_type'][0].upper()
@@ -16,7 +17,7 @@ def check(parameters):
 
     # parameter checking (if there's an error change parameters in question)
     assert(parameters['comp_type'] == 'C' or parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J')
-    assert(parameters['system'] == "TFI" or parameters['system'] == "SPI" or parameters['system'] == "HUB" or parameters['system'] == "H_2")
+    assert(parameters['system'] == 'TFI' or parameters['system'] == 'SPI' or parameters['system'] == 'HUB' or parameters['system'] == 'H_2')
     if 'overlap' not in parameters: parameters['overlap'] = 1
     assert(0<=parameters['overlap']<=1)
     for algo in parameters['algorithms']:
@@ -25,12 +26,12 @@ def check(parameters):
     variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms']
     if parameters['comp_type'] != 'C': variables.append('shots')
     # verify system parameters are setup correctly
-    if parameters['system'] == "TFI":
+    if parameters['system'] == 'TFI':
         variables.append('g')
         if parameters['comp_type'] != 'C':
             variables.append('method_for_model')
             parameters['method_for_model'] = parameters['method_for_model'][0].upper()
-            assert(parameters['method_for_model']=="F" or parameters['method_for_model']=="Q")
+            assert(parameters['method_for_model']=='F' or parameters['method_for_model']=='Q')
             if parameters['method_for_model'] == 'F': variables.append('trotter')
     elif parameters['system'] == 'HUB':
         variables.append('t')
@@ -66,38 +67,42 @@ def check(parameters):
     for key in keys:
         if key not in variables:
             parameters.pop(key)
-    print("Parameters are setup.")
-    print(parameters)
-    create_hamiltonian(parameters)
+    H,_ =create_hamiltonian(parameters)
+    energy,_ = eigh(H)
+    print('Scaled Ground energy:', energy[0])
+    print('Parameters are setup:')
+    for key in parameters.keys():
+        print('  '+key+':', parameters[key])
+    print()
     return backend
 
 
 # define a system for naming files
 def make_filename(parameters, add_shots = False):
     system = parameters['system']
-    string = "comp="+parameters['comp_type']+"_sys="+system
-    string+="_n="+str(parameters['sites'])
-    if system=="TFI":
+    string = 'comp='+parameters['comp_type']+'_sys='+system
+    string+='_n='+str(parameters['sites'])
+    if system=='TFI':
         if parameters['comp_type'] != 'C':
             method_for_model = parameters['method_for_model']
-            string+="_m="+method_for_model
+            string+='_m='+method_for_model
             if method_for_model == 'F':
-                string+="_trotter="+str(parameters['trotter'])
-        string+="_g="+str(parameters['g'])
-    elif system=="SPI":
-        string+="_J="+str(parameters['J'])
-    elif system=="HUB":
-        string+="_t="+str(parameters['t'])
-        string+="_U="+str(parameters['U'])
-        string+="_x="+str(parameters['x'])
-        string+="_y="+str(parameters['y'])
-    elif system=="H_2":
-        string+="_dist="+str(parameters['distance'])
-    string+="_scale="+str(parameters['scaling'])
-    string+="_shift="+str(parameters['shifting'])
-    string+="_overlap="+str(parameters['overlap'])
-    string+="_Dt="+str(parameters['Dt'])
-    string += "_maxitr="+str(parameters['num_timesteps'])
-    if add_shots and parameters['comp_type'] != 'C': string += "_shots="+str(parameters['shots'])
+                string+='_trotter='+str(parameters['trotter'])
+        string+='_g='+str(parameters['g'])
+    elif system=='SPI':
+        string+='_J='+str(parameters['J'])
+    elif system=='HUB':
+        string+='_t='+str(parameters['t'])
+        string+='_U='+str(parameters['U'])
+        string+='_x='+str(parameters['x'])
+        string+='_y='+str(parameters['y'])
+    elif system=='H_2':
+        string+='_dist='+str(parameters['distance'])
+    string+='_scale='+str(parameters['scaling'])
+    string+='_shift='+str(parameters['shifting'])
+    string+='_overlap='+str(parameters['overlap'])
+    string+='_Dt='+str(parameters['Dt'])
+    string += '_maxitr='+str(parameters['num_timesteps'])
+    if add_shots and parameters['comp_type'] != 'C': string += '_shots='+str(parameters['shots'])
     return string
 

@@ -1,16 +1,5 @@
-from scipy.linalg import eig
+from scipy.linalg import eig, toeplitz
 import numpy as np
-
-def toeplitz(data):
-    n = (len(data)-1)/2
-    X = np.zeros((n, n), dtype=complex)
-    X[0][0]=data[0]
-    for x in range(1,n):
-        X[x][0] = data[x]
-        for y in range(1,n):
-            X[0][y] = data[x+y]
-            X[x][y]=X[x-1][y-1]
-    return data
 
 def VQPE(exp_vals, Hexp_vals, tol = 10**-6):
     '''
@@ -30,7 +19,10 @@ def VQPE(exp_vals, Hexp_vals, tol = 10**-6):
     '''
     H = toeplitz(Hexp_vals)
     S = toeplitz(exp_vals)
-    V,d = eig(S)
+    d,V = eig(S)
+    idx = d.argsort()[::-1]
+    d = d[idx]
+    V = V[:,idx]
     filter = sum(d>tol*d[0])
     V = V[:,:filter]
     d = d[:filter]
@@ -41,8 +33,8 @@ def VQPE(exp_vals, Hexp_vals, tol = 10**-6):
     return eig_vals
 
 def VQPE_ground_energy(exp_vals, Hexp_vals, tol = 0):
-    results = []
+    est_E_0s = []
     for i in range(len(exp_vals)):
         eig_vals = VQPE(exp_vals[:i], Hexp_vals[:i], tol=tol)
-        results.append(eig_vals[0])
-    return results
+        est_E_0s.append(eig_vals[0])
+    return est_E_0s, [(i+1)*4 for i in range(len(exp_vals))]

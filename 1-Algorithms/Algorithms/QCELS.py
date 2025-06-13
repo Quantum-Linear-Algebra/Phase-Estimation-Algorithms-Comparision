@@ -35,14 +35,11 @@ def base_qcels_largeoverlap(exp_vals, lambda_prior, Dt):
 
 def QCELS(exp_vals, Dt, skipping = 1):
     time_steps = len(exp_vals)
-    # import pdb; pdb.set_trace()
     exp_val_1 = exp_vals[int(1/Dt)]
     Phase = -np.arccos(exp_val_1.real)
     if  np.arcsin(exp_val_1.imag)<0:
         Phase = - Phase
     lambda_prior = Phase
-    print('re_lam', lambda_prior)
-    lambda_prior = -3*np.pi/4
     est_E_0s = []
     for i in range(time_steps//skipping):
         #------------------QCELS-----------------
