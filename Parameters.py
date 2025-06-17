@@ -4,9 +4,6 @@ from numpy import pi
 from scipy.linalg import eigh
 from Service import create_hardware_backend
 from sys import exit
-import sys
-sys.path.append('0-Data')
-from Data_Manager import create_hamiltonian
 
 def check(parameters):
     print('Setting up parameters.')
@@ -21,7 +18,7 @@ def check(parameters):
     if 'overlap' not in parameters: parameters['overlap'] = 1
     assert(0<=parameters['overlap']<=1)
     for algo in parameters['algorithms']:
-        assert(algo in ['VQPE','ODMD','QCELS'])
+        assert(algo in ['UVQPE','ODMD','QCELS'])
 
     if parameters['comp_type'] != 'J':
         variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms', 'r_scaling']
@@ -58,6 +55,10 @@ def check(parameters):
             parameters['sites']=1
     else:
         variables = ['comp_type']
+    
+    import sys
+    sys.path.append('0-Data')
+    from Data_Manager import create_hamiltonian
     H,_ =create_hamiltonian(parameters)
     energy,_ = eigh(H)
     print('Scaled Ground energy:', energy[0])

@@ -1,12 +1,14 @@
+
+
+from numpy import pi
+
+import Parameters as param
+
 import sys 
 paths = ['./0-Data', './1-Algorithms', './2-Graphing']
 for path in paths:
     if path not in sys.path:
         sys.path.append(path)
-
-from numpy import pi
-
-import Parameters as param
 import Data_Manager as data
 import Algorithm_Manager as algo
 import Graph_Manager as graph_gen
@@ -16,9 +18,9 @@ parameters = {}
 
 # Generic Parameters
 parameters['comp_type']     = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['num_timesteps'] = 100
+parameters['num_timesteps'] = 400
 parameters['sites']         = 3
-parameters['Dt']            = 0.01
+parameters['Dt']            = 0.03
 parameters['shots']         = 100
 parameters['scaling']       = 3/4*pi
 parameters['shifting']      = 0
@@ -45,7 +47,7 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['VQPE'] # OPTIONS: ODMD, VQPE, UVQPE, QCELS, ML-QCELS
+parameters['algorithms'] = ['UVQPE'] # OPTIONS: ODMD, UVQPE, QCELS, ML-QCELS
 parameters['fourier_filtering'] = False
 
 backend = param.check(parameters)

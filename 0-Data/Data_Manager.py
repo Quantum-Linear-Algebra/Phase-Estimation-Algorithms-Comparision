@@ -3,6 +3,7 @@ import pickle
 import sys
 sys.path.append('.')
 from Service import empty, create_service
+from Parameters import make_filename
 
 import subprocess, os, numpy as np
 from scipy.linalg import expm, eigh
@@ -308,7 +309,7 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def hadamard_test_circuit_info(Dt, parameters, VQPE=False):
+def hadamard_test_circuit_info(Dt, parameters):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
@@ -368,14 +369,9 @@ def generate_exp_vals(parameters):
     for i in range(num_timesteps):
         exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
     all_exp_vals.append(exp_vals)
-    if 'VQPE' in parameters['algorithms']:
-        exp_vals = []
-        for i in range(num_timesteps):
-            exp_vals.append(np.sum(np.array(spectrum)*(E*np.exp(-1j*E*i*Dt))))
-        all_exp_vals.append(exp_vals)
     return all_exp_vals
 
-def transpile_hadamard_tests(parameters, Dt, backend, W='Re', VQPE=False):
+def transpile_hadamard_tests(parameters, Dt, backend, W='Re'):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
@@ -390,11 +386,10 @@ def transpile_hadamard_tests(parameters, Dt, backend, W='Re', VQPE=False):
     '''
 
     trans_qcs = []
-    gates, statevector = hadamard_test_circuit_info(Dt, parameters, VQPE=VQPE)
+    gates, statevector = hadamard_test_circuit_info(Dt, parameters)
     for controlled_U in gates:
         trans_qcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
     return trans_qcs
-
 
 def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location):
     exe = location+"/release/examples/f3c_time_evolution_TFYZ"
@@ -469,8 +464,10 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
     return gates
 
 def run(parameters, backend):
-    print(parameters)
-    VQPE = 'VQPE' in parameters['algorithms']
+    try:
+        os.mkdir('0-Data/Transpiled_Circuits')
+        os.mkdir('0-Data/Expectation_Values')
+    except: pass
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         Dt = parameters['Dt']
         filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
@@ -489,23 +486,6 @@ def run(parameters, backend):
                 qpy.dump(trans_qcs, file)
         else:
             print('File found for Im Dt =', Dt)
-        if VQPE:
-            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_VQPE_Re.qpy'
-            if empty(filename):
-                print('Creating file for VQPE Dt =', Dt)
-                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re', VQPE=True)
-                with open(filename, 'wb') as file:
-                    qpy.dump(trans_qcs, file)
-            else:
-                print('File found for VQPE Dt =', Dt)
-            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_VQPE_Im.qpy'
-            if empty(filename):
-                print('Creating file for VQPE Dt =', Dt)
-                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', VQPE=True)
-                with open(filename, 'wb') as file:
-                    qpy.dump(trans_qcs, file)
-            else:
-                print('File found for VQPE Dt =', Dt)
         print()
 
     # load/generate exp_vals data
@@ -589,19 +569,11 @@ def run(parameters, backend):
         shots = parameters['shots']
         exp_vals = calc_all_exp_vals(results[0:2*num_timesteps], num_timesteps, shots)
         all_exp_vals.append(exp_vals)
-        if VQPE:
-            exp_vals = calc_all_exp_vals(results[2*num_timesteps:4*num_timesteps], num_timesteps, shots)
-            all_exp_vals.append(exp_vals)
     # save expectation values
     filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True)+'.pkl'
     with open(filename, 'wb') as file:
         pickle.dump(all_exp_vals[0], file)
     print('Saved expectation values into file.', '('+filename+')')
-    if VQPE:
-        filename = '0-Data/Expectation_Values/VQPE_'+make_filename(parameters, add_shots=True)+'.pkl'
-        with open(filename, 'wb') as file:
-            pickle.dump(all_exp_vals[1], file)
-        print('Saved expectation values into file.', '('+filename+')')
     return parameters
 
 def calc_all_exp_vals(results, num_timesteps, shots):
