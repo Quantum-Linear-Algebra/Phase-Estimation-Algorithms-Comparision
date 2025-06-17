@@ -1,7 +1,7 @@
 from scipy.linalg import eig, toeplitz
 import numpy as np
 
-def VQPE(exp_vals, Dt, svd_threshold, show_steps = False):
+def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     '''
     Estimates the energy states of the system
     represented by exp_vals and Hexp_vals 
@@ -42,12 +42,12 @@ def VQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     if show_steps: print('Eigenvalues:', eig_vals)
     return eig_vals
 
-def VQPE_ground_energy(exp_vals, Dt,  svd_threshold, skipping=1, show_steps = False):
+def UVQPE_ground_energy(exp_vals, Dt,  svd_threshold, skipping=1, show_steps = False):
     est_E_0s = []
     observables = [i*skipping for i in  range(int(len(exp_vals)/skipping))]
     for i in observables:
         if i < 2: est_E_0s.append(0);continue
         if show_steps: print('\nIteration:', i+1)
-        eig_vals = VQPE(exp_vals[:i+1], Dt, svd_threshold, show_steps=show_steps)
+        eig_vals = UVQPE(exp_vals[:i+1], Dt, svd_threshold, show_steps=show_steps)
         est_E_0s.append(eig_vals[0])
     return est_E_0s, observables
