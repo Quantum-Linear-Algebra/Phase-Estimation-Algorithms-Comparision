@@ -1,3 +1,9 @@
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+import pickle
+import sys
+sys.path.append('.')
+from Service import empty, create_service
+
 import subprocess, os, numpy as np
 from scipy.linalg import expm, eigh
 
@@ -167,7 +173,7 @@ def create_hamiltonian(parameters, scale=True, show_steps=False):
             basis='sto3g'
         )
         molecule = driver.run()
-        mapper = ParityMapper(num_sites=molecule.num_sites)
+        mapper = ParityMapper()
         fer_op = molecule.hamiltonian.second_q_op()
         tapered_mapper = molecule.get_tapered_mapper(mapper)
         H = tapered_mapper.map(fer_op)
@@ -213,7 +219,7 @@ def create_hamiltonian(parameters, scale=True, show_steps=False):
             print("Lowest energy eigenvalue", min_eigenvalue); print()
     return H, real_E_0
 
-def hadamard_test(controlled_U, statevector, W = 'Re', shots=100):
+def run_hadamard_test(controlled_U, statevector, W = 'Re', shots=100):
     '''
     Run a transpiled hadamard test quantum circuit.
 
@@ -236,7 +242,7 @@ def hadamard_test(controlled_U, statevector, W = 'Re', shots=100):
 
 def create_hadamard_test(backend, controlled_U, statevector, W = 'Re'):
     '''
-    Creates a transpiled hadamardd test for the specificed backend.
+    Creates a transpiled hadamard test for the specificed backend.
 
     Parameters:
      - backend: the backend to transpile the circuit on
@@ -302,7 +308,7 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def exp_vals_circuit_info(Dt, parameters):
+def hadamard_test_circuit_info(Dt, parameters, VQPE=False):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
@@ -349,6 +355,7 @@ def generate_exp_vals(parameters):
     '''
 
     Dt = parameters['Dt']
+    num_timesteps = parameters['num_timesteps']
     H,_ = create_hamiltonian(parameters)
     E, vecs = eigh(H)
     ground_state = vecs[:,0]
@@ -356,12 +363,19 @@ def generate_exp_vals(parameters):
     spectrum = []
     for i in range(len(vecs)):
         spectrum.append(np.abs(sv.conj().T@vecs[:,i])**2)
+    all_exp_vals = []
     exp_vals = []
-    for i in range(parameters['num_timesteps']):
+    for i in range(num_timesteps):
         exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
-    return exp_vals
+    all_exp_vals.append(exp_vals)
+    if 'VQPE' in parameters['algorithms']:
+        exp_vals = []
+        for i in range(num_timesteps):
+            exp_vals.append(np.sum(np.array(spectrum)*(E*np.exp(-1j*E*i*Dt))))
+        all_exp_vals.append(exp_vals)
+    return all_exp_vals
 
-def transpile_exp_vals(parameters, Dt, backend, W='Re'):
+def transpile_hadamard_tests(parameters, Dt, backend, W='Re', VQPE=False):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
@@ -376,14 +390,11 @@ def transpile_exp_vals(parameters, Dt, backend, W='Re'):
     '''
 
     trans_qcs = []
-    gates, statevector = exp_vals_circuit_info(Dt, parameters)
+    gates, statevector = hadamard_test_circuit_info(Dt, parameters, VQPE=VQPE)
     for controlled_U in gates:
         trans_qcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
     return trans_qcs
 
-def transpile_Hexp_vals(parameters, Dt, backend):
-    trans_qcs =[]
-    return trans_qcs
 
 def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location):
     exe = location+"/release/examples/f3c_time_evolution_TFYZ"
@@ -456,3 +467,173 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
         os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step)+".qasm")
     os.rmdir("TFIM_Operators")
     return gates
+
+def run(parameters, backend):
+    print(parameters)
+    VQPE = 'VQPE' in parameters['algorithms']
+    if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
+        Dt = parameters['Dt']
+        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
+        if empty(filename):
+            print('Creating file for Re Dt =', Dt)
+            trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re')
+            with open(filename, 'wb') as file:
+                qpy.dump(trans_qcs, file)
+        else:
+            print('File found for Re Dt =', Dt)
+        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
+        if empty(filename):
+            print('Creating file for Im Dt =', Dt)
+            trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im')
+            with open(filename, 'wb') as file:
+                qpy.dump(trans_qcs, file)
+        else:
+            print('File found for Im Dt =', Dt)
+        if VQPE:
+            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_VQPE_Re.qpy'
+            if empty(filename):
+                print('Creating file for VQPE Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re', VQPE=True)
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for VQPE Dt =', Dt)
+            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_VQPE_Im.qpy'
+            if empty(filename):
+                print('Creating file for VQPE Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', VQPE=True)
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for VQPE Dt =', Dt)
+        print()
+
+    # load/generate exp_vals data
+    if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
+        trans_qcs = []
+        Dt = parameters['Dt']
+        print('Loading data from file for Real Hadamard Tests')
+        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
+        with open(filename, 'rb') as file:
+            qcs = qpy.load(file)
+            trans_qcs.append(qcs)
+        print('Loading data from file for Imaginary Hadamard Tests')
+        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
+        with open(filename, 'rb') as file:
+            qcs = qpy.load(file)
+            trans_qcs.append(qcs)
+        print()
+        trans_qcs = sum(trans_qcs, []) # flatten list
+        sampler = Sampler(backend)
+        if parameters['comp_type'] == 'H':
+            job_correct_size = False
+            jobs_tqcs = [trans_qcs]
+            # The circuits are divided as into as little jobs as possible
+            while(not job_correct_size):
+                jobs = []
+                job_correct_size = True
+                for job_tqcs in jobs_tqcs:
+                    print(len(job_tqcs)*parameters['shots'])
+                    if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
+                        job_correct_size = False
+                if job_correct_size:
+                    try:
+                        for tqcs in jobs_tqcs:
+                            jobs.append(sampler.run(tqcs, shots = parameters['shots']))
+                    except:
+                        job_correct_size = False
+                if not job_correct_size:
+                    print('Job too large, splitting in half (max '+str(len(jobs_tqcs[0])//2)+' circuits per job)... ')
+                    temp = []
+                    for tqcs in jobs_tqcs:
+                        half = int(len(tqcs)/2)
+                        temp.append(tqcs[:half])
+                        temp.append(tqcs[half:])
+                    jobs_tqcs = temp
+            print('Saving Parameters.')
+            batch_id = jobs[0].job_id()
+            job_ids = [job.job_id() for job in jobs]
+            with open('0-Data/Jobs/'+batch_id+'.pkl', 'wb') as file:
+                pickle.dump([parameters, job_ids], file)
+            print('Sending Job.')
+        if parameters['comp_type'] == 'S':
+            print('Running Circuits.')
+            jobs = [sampler.run(trans_qcs, shots=parameters['shots'])]
+        results = []
+        for job in jobs:
+            for result in job.result():
+                results.append(result)
+        print('Data recieved.')
+        print()
+    elif parameters['comp_type'] == 'J':
+        batch_id = input('Enter Job/Batch ID: ')
+        print('Loading parameter data')
+        with open('0-Data/Jobs/'+str(batch_id)+'.pkl', 'rb') as file:
+            [parameters, job_ids] = pickle.load(file)
+        results = []
+        service = create_service()
+        for job_id in job_ids:
+            print('Loading data from job:', job_id)
+            job = service.job(job_id)
+            for result in job.result():
+                results.append(result)
+            print('Loaded data from job:', job_id)
+        print()
+    
+    all_exp_vals = []
+    if parameters['comp_type'] == 'C':
+        print('Generating Data')
+        all_exp_vals = generate_exp_vals(parameters)
+    elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
+        num_timesteps = parameters['num_timesteps']
+        shots = parameters['shots']
+        exp_vals = calc_all_exp_vals(results[0:2*num_timesteps], num_timesteps, shots)
+        all_exp_vals.append(exp_vals)
+        if VQPE:
+            exp_vals = calc_all_exp_vals(results[2*num_timesteps:4*num_timesteps], num_timesteps, shots)
+            all_exp_vals.append(exp_vals)
+    # save expectation values
+    filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True)+'.pkl'
+    with open(filename, 'wb') as file:
+        pickle.dump(all_exp_vals[0], file)
+    print('Saved expectation values into file.', '('+filename+')')
+    if VQPE:
+        filename = '0-Data/Expectation_Values/VQPE_'+make_filename(parameters, add_shots=True)+'.pkl'
+        with open(filename, 'wb') as file:
+            pickle.dump(all_exp_vals[1], file)
+        print('Saved expectation values into file.', '('+filename+')')
+    return parameters
+
+def calc_all_exp_vals(results, num_timesteps, shots):
+    print('Calculating the expectation values.')
+    result = results[0:num_timesteps]
+    Res = []
+    for j in range(len(result)):
+        raw_data = result[j].data
+        cbit = list(raw_data.keys())[0]
+        Res.append(calculate_exp_vals(raw_data[cbit].get_counts(), shots))
+    Ims = []
+    start = num_timesteps
+    result = results[start:(start+num_timesteps)]
+    for j in range(len(result)):
+        raw_data = result[j].data
+        cbit = list(raw_data.keys())[0]
+        Ims.append(calculate_exp_vals(raw_data[cbit].get_counts(), shots))
+    exp_vals = []
+    for i in range(len(Res)):
+        exp_vals.append(complex(Res[i], Ims[i]))
+    return exp_vals
+
+def save_job_ids_params(parameters):
+    job_ids = input('Enter Job ID(s):')
+    job_ids = [job_ids[i*20:(i+1)*20] for i in range(len(job_ids)//20)]
+    print(job_ids)
+    with open('0-Data/Jobs/'+job_ids[0]+'.pkl', 'wb') as file:
+        pickle.dump([parameters, job_ids], file)
+
+if __name__ == '__main__':
+    from Comparison import parameters
+    from Parameters import check
+    backend = check(parameters)
+    run(parameters, backend)
+    # data.save_job_ids_params(parameters)

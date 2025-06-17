@@ -11,7 +11,7 @@ for path in paths:
         sys.path.append(path)
 
 from Parameters import make_filename
-from Data_Generator_Helper import create_hamiltonian, make_overlap
+from Data_Manager import create_hamiltonian, make_overlap
 
 def run(parameters):
     filename = make_filename(parameters, add_shots=True)+'.pkl'
@@ -70,7 +70,7 @@ def run(parameters):
         else: x=observables
         xs.append(x)
         plt.plot(x, err, label = algo)
-    plt.title('Convergence Absolute Error in Energy for '+parameters['system'])
+    plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Absolute Error')
     if use_shots: plt.xlabel('Total Shots')
     else: plt.xlabel('Number of Observables')
@@ -90,7 +90,18 @@ def run(parameters):
         plt.plot(xs[i], all_est_E_0s[i], label = parameters['algorithms'][i])
     plt.legend()
     # plt.ylim(eigs[0]+.1, eigs[0]-.1)
-    plt.title('Convergence in Energy for '+parameters['system'])
+    plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Eigenvalue')
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png')
     plt.show()
+
+if __name__ == '__main__':
+    import sys 
+    paths = ['.', './2-Graphing']
+    for path in paths:
+        if path not in sys.path:
+            sys.path.append(path)
+    from Comparison import parameters
+    from Parameters import check
+    check(parameters)
+    run(parameters)

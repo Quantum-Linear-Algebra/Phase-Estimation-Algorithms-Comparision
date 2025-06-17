@@ -7,22 +7,22 @@ for path in paths:
 from numpy import pi
 
 import Parameters as param
-import Data_Generator as data
+import Data_Manager as data
 import Algorithm_Manager as algo
-import Graph_Generator as graph_gen
+import Graph_Manager as graph_gen
 
 parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']     = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['num_timesteps'] = 100000
-parameters['sites']         = 2
+parameters['comp_type']     = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['num_timesteps'] = 100
+parameters['sites']         = 3
 parameters['Dt']            = 0.01
-parameters['shots']         = 10**2
+parameters['shots']         = 100
 parameters['scaling']       = 3/4*pi
 parameters['shifting']      = 0
-parameters['overlap']       = .7   # the initial state overlap
+parameters['overlap']       = 1   # the initial state overlap
 
 # SPECIFIC SYSTEM TYPE
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
@@ -38,18 +38,19 @@ parameters['J'] = 4 # coupling strength (SPIN)
 # Hubbard Parameters
 parameters['t'] = 1 # left-right hopping (HUBB)
 parameters['U'] = 10 # up-down hopping (HUBB)
-parameters['x'] = 2 # x size of latice (HUBB)
+parameters['x'] = 3 # x size of latice (HUBB)
 parameters['y'] = 1 # y size of latice (HUBB)
 
 # H_2 Parameters
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['QCELS'] # OPTIONS: ODMD, VQPE, QCELS, ML-QCELS
+parameters['algorithms'] = ['VQPE'] # OPTIONS: ODMD, VQPE, UVQPE, QCELS, ML-QCELS
+parameters['fourier_filtering'] = False
 
 backend = param.check(parameters)
 
 if __name__ == "__main__":
-    data.run(parameters, backend)
-    algo.run(parameters, skipping=100)
+    parameters = data.run(parameters, backend)
+    algo.run(parameters, skipping=1)
     graph_gen.run(parameters)

@@ -6,7 +6,7 @@ from Service import create_hardware_backend
 from sys import exit
 import sys
 sys.path.append('0-Data')
-from Data_Generator_Helper import create_hamiltonian
+from Data_Manager import create_hamiltonian
 
 def check(parameters):
     print('Setting up parameters.')
@@ -23,53 +23,59 @@ def check(parameters):
     for algo in parameters['algorithms']:
         assert(algo in ['VQPE','ODMD','QCELS'])
 
-    variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms']
-    if parameters['comp_type'] != 'C': variables.append('shots')
-    # verify system parameters are setup correctly
-    if parameters['system'] == 'TFI':
-        variables.append('g')
-        if parameters['comp_type'] != 'C':
-            variables.append('method_for_model')
-            parameters['method_for_model'] = parameters['method_for_model'][0].upper()
-            assert(parameters['method_for_model']=='F' or parameters['method_for_model']=='Q')
-            if parameters['method_for_model'] == 'F': variables.append('trotter')
-    elif parameters['system'] == 'HUB':
-        variables.append('t')
-        variables.append('U')
-        x_in = 'x' in parameters.keys()
-        y_in = 'y' in parameters.keys()
-        if not x_in and not y_in:
-            parameters['x'] = parameters['sites']
-            parameters['y'] = 1
-        elif not x_in: parameters['x'] = 1
-        elif not y_in: parameters['y'] = 1
-        x = parameters['x']
-        y = parameters['y']
-        assert(x>=0 and y>=0)
-        assert(x*y == parameters['sites']) # change the latice shape
-        variables.append('x')
-        variables.append('y')
-    elif parameters['system'] == 'SPI':
-        variables.append('J')
-        assert(parameters['J']!=0)
-    elif parameters['system'] == 'H_2':
-        variables.append('distance')
-        parameters['sites']=1
-
-    # backend setup
-    if parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
-        backend = create_hardware_backend()
+    if parameters['comp_type'] != 'J':
+        variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms', 'r_scaling']
+        if parameters['comp_type'] != 'C': variables.append('shots')
+        # verify system parameters are setup correctly
+        if parameters['system'] == 'TFI':
+            variables.append('g')
+            if parameters['comp_type'] != 'C':
+                variables.append('method_for_model')
+                parameters['method_for_model'] = parameters['method_for_model'][0].upper()
+                assert(parameters['method_for_model']=='F' or parameters['method_for_model']=='Q')
+                if parameters['method_for_model'] == 'F': variables.append('trotter')
+        elif parameters['system'] == 'HUB':
+            variables.append('t')
+            variables.append('U')
+            x_in = 'x' in parameters.keys()
+            y_in = 'y' in parameters.keys()
+            if not x_in and not y_in:
+                parameters['x'] = parameters['sites']
+                parameters['y'] = 1
+            elif not x_in: parameters['x'] = 1
+            elif not y_in: parameters['y'] = 1
+            x = parameters['x']
+            y = parameters['y']
+            assert(x>=0 and y>=0)
+            assert(x*y == parameters['sites']) # change the latice shape
+            variables.append('x')
+            variables.append('y')
+        elif parameters['system'] == 'SPI':
+            variables.append('J')
+            assert(parameters['J']!=0)
+        elif parameters['system'] == 'H_2':
+            variables.append('distance')
+            parameters['sites']=1
     else:
-        backend = AerSimulator(noise_model = NoiseModel())
+        variables = ['comp_type']
+    H,_ =create_hamiltonian(parameters)
+    energy,_ = eigh(H)
+    print('Scaled Ground energy:', energy[0])
+    
     keys = []
     for i in parameters.keys():
         keys.append(i)
     for key in keys:
         if key not in variables:
             parameters.pop(key)
-    H,_ =create_hamiltonian(parameters)
-    energy,_ = eigh(H)
-    print('Scaled Ground energy:', energy[0])
+
+    # backend setup
+    if parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
+        backend = create_hardware_backend()
+    else:
+        backend = AerSimulator(noise_model = NoiseModel())
+    
+    
     print('Parameters are setup:')
     for key in parameters.keys():
         print('  '+key+':', parameters[key])

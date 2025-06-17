@@ -35,7 +35,7 @@ def base_qcels_largeoverlap(exp_vals, lambda_prior, Dt):
 
 def QCELS(exp_vals, Dt, skipping = 1):
     time_steps = len(exp_vals)
-    exp_val_1 = exp_vals[int(1/Dt)]
+    exp_val_1 = exp_vals[1]*Dt
     Phase = -np.arccos(exp_val_1.real)
     if  np.arcsin(exp_val_1.imag)<0:
         Phase = - Phase
