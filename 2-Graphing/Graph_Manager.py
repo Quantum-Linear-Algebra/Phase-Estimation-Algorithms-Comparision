@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-import sys
+import sys, os
 from scipy.linalg import eigh
 from scipy.fft import fft, fftshift, fftfreq
 
@@ -13,19 +13,23 @@ for path in paths:
 from Parameters import make_filename
 from Data_Manager import create_hamiltonian, make_overlap
 
-def run(parameters):
-    filename = make_filename(parameters, add_shots=True)+'.pkl'
-    with open('0-Data/Expectation_Values/'+filename, 'rb') as file:
-        exp_vals = pickle.load(file)
-    
+def run(parameters, max_itr=-1):
+    try: os.mkdir('2-Graphing/Graphs')
+    except: pass
+    try:
+        filename = make_filename(parameters, add_shots=True)+'.pkl'
+        with open('0-Data/Expectation_Values/'+filename, 'rb') as file:
+            exp_vals = pickle.load(file)
+    except: print("Failed to grab expectation value data. Try generating the dataset")
     all_est_E_0s = []
     all_observables = []
     for algo in parameters['algorithms']:    
-        with open('1-Algorithms/Results/'+algo+'_'+filename, 'rb') as file:
-            [observables, est_E_0s] = pickle.load(file)
-        all_est_E_0s.append(est_E_0s)
-        all_observables.append(observables)
-
+        try:
+            with open('1-Algorithms/Results/'+algo+'_'+filename, 'rb') as file:
+                [observables, est_E_0s] = pickle.load(file)
+            all_est_E_0s.append(est_E_0s)
+            all_observables.append(observables)
+        except: print('Failed to grab energy estimates for'+algo+'. Try recalculating the results the algorithm.')
     H,real_E_0 = create_hamiltonian(parameters)
     E,vecs = eigh(H)
     vecs = [vecs[:,i] for i in range(len(vecs))]
@@ -70,6 +74,7 @@ def run(parameters):
         else: x=observables
         xs.append(x)
         plt.plot(x, err, label = algo)
+    if max_itr != -1: plt.xlim([0, max_itr])
     plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Absolute Error')
     if use_shots: plt.xlabel('Total Shots')
@@ -88,12 +93,28 @@ def run(parameters):
         plt.plot([x[0],x[-1],], [eigs[i],eigs[i]], label = 'E'+str(i))
     for i in range(len(all_est_E_0s)):
         plt.plot(xs[i], all_est_E_0s[i], label = parameters['algorithms'][i])
+    if max_itr != -1: plt.xlim([0, max_itr])
     plt.legend()
     # plt.ylim(eigs[0]+.1, eigs[0]-.1)
     plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Eigenvalue')
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png')
     plt.show()
+    isolate_graphs(parameters)
+
+def isolate_graphs(parameters):
+    print('Attempting to copy newly generated graphs.')
+    try: os.mkdir('Recent_Graphs')
+    except: pass
+    try:
+        filename = make_filename(parameters, add_shots=True)
+        graph_types = ['Spectrum', 'Expectation_Value', 'Fourier_Transform_Expectation_Value', 'Abs_Error', 'Convergence']
+        for graph_type in graph_types:
+            exit_code = os.system('cp 2-Graphing/Graphs/'+filename+'_'+graph_type+'.png Recent_Graphs/'+graph_type+'.png')
+            assert(exit_code==0)
+        print('Successfully copied newly generated graphs. (Recent_Graphs/*.png)')
+    except:
+        print('One or more of the regularly generated graphs do not exist. Try regenerating the desired graphs.')
 
 if __name__ == '__main__':
     import sys 
@@ -104,4 +125,5 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     check(parameters)
-    run(parameters)
+    run(parameters, max_itr=50)
+    # isolate_graphs(parameters)
