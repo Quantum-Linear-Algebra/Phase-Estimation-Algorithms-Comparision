@@ -548,8 +548,10 @@ def run(parameters, backend):
     elif parameters['comp_type'] == 'J':
         batch_id = input('Enter Job/Batch ID: ')
         print('Loading parameter data')
+        algos = parameters['algorithms']
         with open('0-Data/Jobs/'+str(batch_id)+'.pkl', 'rb') as file:
             [parameters, job_ids] = pickle.load(file)
+        parameters['algorithms'] = algos
         results = []
         service = create_service()
         for job_id in job_ids:
@@ -558,6 +560,7 @@ def run(parameters, backend):
             for result in job.result():
                 results.append(result)
             print('Loaded data from job:', job_id)
+        create_hamiltonian(parameters)
         print()
     
     all_exp_vals = []

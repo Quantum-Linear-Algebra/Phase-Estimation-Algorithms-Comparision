@@ -14,6 +14,7 @@ from Parameters import make_filename
 from Data_Manager import create_hamiltonian, make_overlap
 
 def run(parameters, max_itr=-1):
+    # get related data
     try: os.mkdir('2-Graphing/Graphs')
     except: pass
     try:
@@ -35,10 +36,14 @@ def run(parameters, max_itr=-1):
     vecs = [vecs[:,i] for i in range(len(vecs))]
     sv = make_overlap(vecs[0], parameters['overlap'])
 
+    # create related graphs
+    plt.figure()
     plt.title('Overlap')
     plt.bar(range(len(vecs)),[np.linalg.norm(sv@vecs[i]) for i in range(len(vecs))], width=.6)
-    plt.xticks(range(len(vecs)), [f'{i:.3}' for i in E])
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png')
+    plt.xticks(range(len(vecs)), [f'{i:.5}' for i in E], rotation=90)
+    plt.xlabel('Energy value of eigenstate', labelpad=10)
+    plt.ylabel('Overlap with input state')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
     plt.show()
 
     plt.figure()
@@ -48,7 +53,7 @@ def run(parameters, max_itr=-1):
     plt.xlabel('Time')
     plt.ylabel('Real Expectation Value')
     plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
     plt.show()
 
 
@@ -58,7 +63,7 @@ def run(parameters, max_itr=-1):
     plt.xlabel('Frequency')
     plt.ylabel('Amplitude')
     plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
     plt.show()
     
     plt.figure()
@@ -83,22 +88,25 @@ def run(parameters, max_itr=-1):
     # plt.xlim([0,10])
     # plt.ylim([0,10])
     plt.yscale('log')
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
     plt.show()
 
     plt.figure()
+    for i in range(len(all_est_E_0s)):
+        plt.plot(xs[i], all_est_E_0s[i], label = parameters['algorithms'][i])
     eigs = np.linalg.eigvals(H)
     eigs = [(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs]
     for i in range(len(eigs)):
         plt.plot([x[0],x[-1],], [eigs[i],eigs[i]], label = 'E'+str(i))
-    for i in range(len(all_est_E_0s)):
-        plt.plot(xs[i], all_est_E_0s[i], label = parameters['algorithms'][i])
     if max_itr != -1: plt.xlim([0, max_itr])
-    plt.legend()
-    # plt.ylim(eigs[0]+.1, eigs[0]-.1)
+    if use_shots: plt.xlabel('Total Shots')
+    else: plt.xlabel('Number of Observables')
+    plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
+    dis = (max(eigs)-min(eigs))/2
+    plt.ylim(min(eigs)-dis, max(eigs)+dis)
     plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Eigenvalue')
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png', bbox_inches='tight')
     plt.show()
     isolate_graphs(parameters)
 
@@ -125,5 +133,5 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     check(parameters)
-    run(parameters, max_itr=50)
+    run(parameters)
     # isolate_graphs(parameters)

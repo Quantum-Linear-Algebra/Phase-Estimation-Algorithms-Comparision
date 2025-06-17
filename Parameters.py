@@ -21,7 +21,7 @@ def check(parameters):
         assert(algo in ['UVQPE','ODMD','QCELS'])
 
     if parameters['comp_type'] != 'J':
-        variables = ['comp_type', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'algorithms', 'r_scaling']
+        variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'r_scaling']
         if parameters['comp_type'] != 'C': variables.append('shots')
         # verify system parameters are setup correctly
         if parameters['system'] == 'TFI':
@@ -53,15 +53,14 @@ def check(parameters):
         elif parameters['system'] == 'H_2':
             variables.append('distance')
             parameters['sites']=1
+        import sys
+        sys.path.append('0-Data')
+        from Data_Manager import create_hamiltonian
+        H,_ =create_hamiltonian(parameters)
+        energy,_ = eigh(H)
+        print('Scaled Ground energy:', energy[0])
     else:
-        variables = ['comp_type']
-    
-    import sys
-    sys.path.append('0-Data')
-    from Data_Manager import create_hamiltonian
-    H,_ =create_hamiltonian(parameters)
-    energy,_ = eigh(H)
-    print('Scaled Ground energy:', energy[0])
+        variables = ['comp_type', 'algorithms']
     
     keys = []
     for i in parameters.keys():

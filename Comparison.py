@@ -17,17 +17,17 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']     = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['num_timesteps'] = 400
-parameters['sites']         = 3
-parameters['Dt']            = 0.03
-parameters['shots']         = 100
+parameters['comp_type']     = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['num_timesteps'] = 100
+parameters['sites']         = 5
+parameters['Dt']            = 0.1
+parameters['shots']         = 10**3
 parameters['scaling']       = 3/4*pi
 parameters['shifting']      = 0
-parameters['overlap']       = 1   # the initial state overlap
+parameters['overlap']       = .2   # the initial state overlap
 
 # SPECIFIC SYSTEM TYPE
-parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
+parameters['system']     = 'TFIM' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
 parameters['g'] = 4 # magnetic field strength (TFIM)
@@ -47,12 +47,11 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['UVQPE'] # OPTIONS: ODMD, UVQPE, QCELS, ML-QCELS
+parameters['algorithms'] = ['QCELS', 'ODMD', 'UVQPE'] # OPTIONS: ODMD, UVQPE, QCELS, ML-QCELS
 parameters['fourier_filtering'] = False
 
-backend = param.check(parameters)
-
 if __name__ == "__main__":
+    backend = param.check(parameters)
     parameters = data.run(parameters, backend)
     algo.run(parameters, skipping=1)
     graph_gen.run(parameters)
