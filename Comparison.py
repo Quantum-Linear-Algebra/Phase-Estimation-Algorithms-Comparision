@@ -17,7 +17,7 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']     = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['comp_type']     = 'J' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['num_timesteps'] = 100
 parameters['sites']         = 5
 parameters['Dt']            = 0.1
@@ -51,7 +51,7 @@ parameters['algorithms'] = ['QCELS', 'ODMD', 'UVQPE'] # OPTIONS: ODMD, UVQPE, QC
 parameters['fourier_filtering'] = False
 
 if __name__ == "__main__":
-    backend = param.check(parameters)
-    parameters = data.run(parameters, backend)
+    returns = param.check(parameters)
+    data.run(parameters, returns)
     algo.run(parameters, skipping=1)
     graph_gen.run(parameters)

@@ -463,7 +463,9 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
     os.rmdir("TFIM_Operators")
     return gates
 
-def run(parameters, backend):
+def run(parameters, returns):
+    backend = returns['backend']
+    if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
     try:
         os.mkdir('0-Data/Transpiled_Circuits')
         os.mkdir('0-Data/Expectation_Values')
@@ -546,12 +548,6 @@ def run(parameters, backend):
         print('Data recieved.')
         print()
     elif parameters['comp_type'] == 'J':
-        batch_id = input('Enter Job/Batch ID: ')
-        print('Loading parameter data')
-        algos = parameters['algorithms']
-        with open('0-Data/Jobs/'+str(batch_id)+'.pkl', 'rb') as file:
-            [parameters, job_ids] = pickle.load(file)
-        parameters['algorithms'] = algos
         results = []
         service = create_service()
         for job_id in job_ids:
@@ -609,6 +605,6 @@ def save_job_ids_params(parameters):
 if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
-    backend = check(parameters)
-    run(parameters, backend)
+    returns = check(parameters)
+    run(parameters, returns)
     # data.save_job_ids_params(parameters)

@@ -39,7 +39,7 @@ def run(parameters, max_itr=-1):
     # create related graphs
     plt.figure()
     plt.title('Overlap')
-    plt.bar(range(len(vecs)),[np.linalg.norm(sv@vecs[i]) for i in range(len(vecs))], width=.6)
+    plt.bar(range(len(vecs)),[np.abs(sv@vecs[i])**2 for i in range(len(vecs))], width=.6)
     plt.xticks(range(len(vecs)), [f'{i:.5}' for i in E], rotation=90)
     plt.xlabel('Energy value of eigenstate', labelpad=10)
     plt.ylabel('Overlap with input state')
