@@ -17,17 +17,17 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']     = 'J' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['num_timesteps'] = 100
-parameters['sites']         = 5
+parameters['comp_type']     = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['num_timesteps'] = 1000
+parameters['sites']         = 2
 parameters['Dt']            = 0.1
-parameters['shots']         = 10**3
+parameters['shots']         = 10**2
 parameters['scaling']       = 3/4*pi
 parameters['shifting']      = 0
-parameters['overlap']       = .2   # the initial state overlap
+parameters['overlap']       = 0.8   # the initial state overlap
 
 # SPECIFIC SYSTEM TYPE
-parameters['system']     = 'TFIM' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
+parameters['system']     = 'HUB' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
 parameters['g'] = 4 # magnetic field strength (TFIM)
@@ -40,15 +40,16 @@ parameters['J'] = 4 # coupling strength (SPIN)
 # Hubbard Parameters
 parameters['t'] = 1 # left-right hopping (HUBB)
 parameters['U'] = 10 # up-down hopping (HUBB)
-parameters['x'] = 3 # x size of latice (HUBB)
+parameters['x'] = 2 # x size of latice (HUBB)
 parameters['y'] = 1 # y size of latice (HUBB)
 
 # H_2 Parameters
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['QCELS', 'ODMD', 'UVQPE'] # OPTIONS: ODMD, UVQPE, QCELS, ML-QCELS
+parameters['algorithms'] = ['QCELS', 'ML_QCELS', 'ODMD'] # OPTIONS: ODMD, UVQPE, QCELS, ML_QCELS
 parameters['fourier_filtering'] = False
+parameters['const_obs'] = False
 
 if __name__ == "__main__":
     returns = param.check(parameters)

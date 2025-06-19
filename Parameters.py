@@ -19,7 +19,7 @@ def check(parameters):
     if 'overlap' not in parameters: parameters['overlap'] = 1
     assert(0<=parameters['overlap']<=1)
     for algo in parameters['algorithms']:
-        assert(algo in ['UVQPE','ODMD','QCELS'])
+        assert(algo in ['UVQPE','ODMD','QCELS', 'ML_QCELS'])
 
     
     returns = {}
@@ -33,7 +33,7 @@ def check(parameters):
         parameters['algorithms'] = algos
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'r_scaling']
+        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0']
         if parameters['comp_type'] != 'C': used_variables.append('shots')
         if parameters['system'] == 'TFI':
             used_variables.append('g')
@@ -68,9 +68,11 @@ def check(parameters):
         import sys
         sys.path.append('0-Data')
         from Data_Manager import create_hamiltonian
-        H,_ =create_hamiltonian(parameters)
+        H,real_E_0 =create_hamiltonian(parameters)
+        parameters['real_E_0'] = real_E_0
         energy,_ = eigh(H)
         print('Scaled Ground energy:', energy[0])
+        parameters['scaled_E_0'] = energy[0]
         
         keys = []
         for i in parameters.keys():

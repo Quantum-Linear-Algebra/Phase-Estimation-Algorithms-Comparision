@@ -33,6 +33,7 @@ def run(parameters, max_itr=-1):
         except: print('Failed to grab energy estimates for'+algo+'. Try recalculating the results the algorithm.')
     H,real_E_0 = create_hamiltonian(parameters)
     E,vecs = eigh(H)
+    # real_E_0 = E[0]
     vecs = [vecs[:,i] for i in range(len(vecs))]
     sv = make_overlap(vecs[0], parameters['overlap'])
 
@@ -93,17 +94,19 @@ def run(parameters, max_itr=-1):
 
     plt.figure()
     for i in range(len(all_est_E_0s)):
-        plt.plot(xs[i], all_est_E_0s[i], label = parameters['algorithms'][i])
+        plt.plot(xs[i], all_est_E_0s[i], markersize=4, label = parameters['algorithms'][i])
     eigs = np.linalg.eigvals(H)
-    eigs = [(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs]
+    eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
+    longest_x = 2*max([len(i) for i in xs])
+
     for i in range(len(eigs)):
-        plt.plot([x[0],x[-1],], [eigs[i],eigs[i]], label = 'E'+str(i))
+        plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label = 'E'+str(i))
     if max_itr != -1: plt.xlim([0, max_itr])
     if use_shots: plt.xlabel('Total Shots')
     else: plt.xlabel('Number of Observables')
     plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
-    dis = (max(eigs)-min(eigs))/2
-    plt.ylim(min(eigs)-dis, max(eigs)+dis)
+    dis = (eigs[2]-eigs[0])/2
+    plt.ylim(eigs[0]-dis, eigs[2]+dis)
     plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
     plt.ylabel('Eigenvalue')
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png', bbox_inches='tight')

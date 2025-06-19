@@ -309,7 +309,7 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def hadamard_test_circuit_info(Dt, parameters):
+def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
@@ -343,7 +343,7 @@ def hadamard_test_circuit_info(Dt, parameters):
             gates.append(controlled_U)
     return gates, statevector
 
-def generate_exp_vals(parameters):
+def generate_exp_vals(parameters, ML_QCELS=False):
     '''
     Generate the exp_vals spectrum
 
@@ -371,7 +371,7 @@ def generate_exp_vals(parameters):
     all_exp_vals.append(exp_vals)
     return all_exp_vals
 
-def transpile_hadamard_tests(parameters, Dt, backend, W='Re'):
+def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
@@ -386,7 +386,7 @@ def transpile_hadamard_tests(parameters, Dt, backend, W='Re'):
     '''
 
     trans_qcs = []
-    gates, statevector = hadamard_test_circuit_info(Dt, parameters)
+    gates, statevector = hadamard_test_circuit_info(Dt, parameters, ML_QCELS=ML_QCELS)
     for controlled_U in gates:
         trans_qcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
     return trans_qcs
@@ -472,22 +472,42 @@ def run(parameters, returns):
     except: pass
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         Dt = parameters['Dt']
-        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
-        if empty(filename):
-            print('Creating file for Re Dt =', Dt)
-            trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re')
-            with open(filename, 'wb') as file:
-                qpy.dump(trans_qcs, file)
-        else:
-            print('File found for Re Dt =', Dt)
-        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
-        if empty(filename):
-            print('Creating file for Im Dt =', Dt)
-            trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im')
-            with open(filename, 'wb') as file:
-                qpy.dump(trans_qcs, file)
-        else:
-            print('File found for Im Dt =', Dt)
+        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
+            if empty(filename):
+                print('Creating file for Re Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re')
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for Re Dt =', Dt)
+            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
+            if empty(filename):
+                print('Creating file for Im Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im')
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for Im Dt =', Dt)      
+
+        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+            filename = '0-Data/Transpiled_Circuits/MLQCELS'+make_filename(parameters)+'_Re.qpy'
+            if empty(filename):
+                print('Creating file for Re Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=True)
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for Re Dt =', Dt)
+            filename = '0-Data/Transpiled_Circuits/MLQCELS'+make_filename(parameters)+'_Im.qpy'
+            if empty(filename):
+                print('Creating file for Im Dt =', Dt)
+                trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', ML_QCELS=True)
+                with open(filename, 'wb') as file:
+                    qpy.dump(trans_qcs, file)
+            else:
+                print('File found for Im Dt =', Dt)      
+
         print()
 
     # load/generate exp_vals data

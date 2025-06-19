@@ -33,13 +33,8 @@ def base_qcels_largeoverlap(exp_vals, lambda_prior, Dt):
     res = qcels_opt(ts, exp_vals, x0)# Solve the optimization problem
     return res.x[2]
 
-def QCELS(exp_vals, Dt, skipping = 1):
+def QCELS(exp_vals, Dt, lambda_prior, skipping = 1):
     time_steps = len(exp_vals)
-    exp_val_1 = exp_vals[1]*Dt
-    Phase = -np.arccos(exp_val_1.real)
-    if  np.arcsin(exp_val_1.imag)<0:
-        Phase = - Phase
-    lambda_prior = Phase
     est_E_0s = []
     for i in range(time_steps//skipping):
         #------------------QCELS-----------------
