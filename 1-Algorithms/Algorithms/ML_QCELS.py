@@ -2,8 +2,13 @@ import numpy as np
 from scipy.linalg import svd
 from scipy.optimize import minimize
 
-def arrange_Z_ests(old_Z_ests, ts):
-    iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1))) + 1)
+def arrange_Z_ests(old_Z_ests, ts, sparse):
+    
+    if sparse:
+        max = np.sort(list(old_Z_ests.keys()))[-1]
+        iterations = int(np.log2(max/ts))+1
+    else:
+        iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1))) + 1)
     Z_ests = []
     for iter in range(iterations):
         Z_ests.append([])
@@ -62,7 +67,6 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, tau):
     """
     iterations = len(Z_est)
     ts=tau*np.arange(time_steps)
-    t_ns = time_steps
     #Step up and solve the optimization problem
     x0=np.array((0.5,0,lambda_prior))
     res = qcels_opt(ts, Z_est[0], x0)#Solve the optimization problem
@@ -75,7 +79,6 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, tau):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     for iter in range(iterations):
         ts=tau*np.arange(time_steps)
-        t_ns += time_steps
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
         bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
@@ -88,18 +91,21 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, tau):
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
         tau*=2
-    return res, t_ns
+    return res
 
-def ML_QCELS(Z_ests, Dt, ts, lambda_prior):
+def ML_QCELS(Z_ests, Dt, ts, lambda_prior, sparse=False):
     observables = []
     est_E_0s = []
-    # lambda_prior = -3*np.pi/4
-    #------------------QCELS-----------------
-    Z_ests = arrange_Z_ests(Z_ests, ts)
+    Z_ests = arrange_Z_ests(Z_ests, ts, sparse=sparse)
     iterations = len(Z_ests)
-    for iter in range(1, iterations + 1):
-        ground_energy_estimate_QCELS, num_t_ns = qcels_largeoverlap(Z_ests[:iter], ts, lambda_prior, Dt)
-        observables.append(2*num_t_ns)
+    for iter in range(0, iterations):
+        ground_energy_estimate_QCELS= qcels_largeoverlap(Z_ests[:iter+1], ts, lambda_prior, Dt)
+        times = set()
+        for itr in range(iter+1):
+            time_series = Z_ests[itr]
+            for time in time_series:
+                times.add(time)
+        observables.append(2*len(times))
         est_E_0 = ground_energy_estimate_QCELS.x[2] 
         est_E_0s.append(est_E_0)
     return est_E_0s, observables
