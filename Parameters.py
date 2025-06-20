@@ -1,6 +1,6 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
-from numpy import pi
+from numpy import pi, sqrt
 from scipy.linalg import eigh
 from Service import create_hardware_backend
 from sys import exit
@@ -33,7 +33,7 @@ def check(parameters):
         parameters['algorithms'] = algos
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'num_timesteps', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0']
+        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0']
         if parameters['comp_type'] != 'C': used_variables.append('shots')
         if parameters['system'] == 'TFI':
             used_variables.append('g')
@@ -71,8 +71,35 @@ def check(parameters):
         H,real_E_0 =create_hamiltonian(parameters)
         parameters['real_E_0'] = real_E_0
         energy,_ = eigh(H)
-        print('Scaled Ground energy:', energy[0])
         parameters['scaled_E_0'] = energy[0]
+        
+        if 'const_obs' not in parameters: parameters['const_obs'] = False
+        
+        if 'ML_QCELS' in parameters['algorithms']:
+            # make sure the time steps per iteration is defined
+            if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
+            used_variables.append('ML_QCELS_time_steps')
+            # adjust the observables so that all algorithms match ML_QCELS's observables
+            if parameters['const_obs']:
+                iteration = 0
+                time_steps_per_itr = parameters['ML_QCELS_time_steps']
+                exp_vals = set()
+                while len(exp_vals) < parameters['observables']/2:
+                    for i in range(time_steps_per_itr):
+                        time = 2**iteration*i
+                        if time in exp_vals: continue
+                        exp_vals.add(time)
+                    iteration+=1
+                parameters['observables'] = len(exp_vals)*2
+            if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
+                delta = 1 #*sqrt(1-parameters['overlap'])
+                parameters['Dt'] = delta/parameters['ML_QCELS_time_steps']
+        if 'ODMD' in parameters['algorithms']:
+            if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
+            used_variables.append('ODMD_svd_threshold')
+        if 'UVQPE' in parameters['algorithms']:
+            if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
+            used_variables.append('UVQPE_svd_threshold')
         
         keys = []
         for i in parameters.keys():
@@ -119,7 +146,7 @@ def make_filename(parameters, add_shots = False):
     string+='_shift='+str(parameters['shifting'])
     string+='_overlap='+str(parameters['overlap'])
     string+='_Dt='+str(parameters['Dt'])
-    string += '_maxitr='+str(parameters['num_timesteps'])
+    string += '_obs='+str(parameters['observables'])
     if add_shots and parameters['comp_type'] != 'C': string += '_shots='+str(parameters['shots'])
     return string
 

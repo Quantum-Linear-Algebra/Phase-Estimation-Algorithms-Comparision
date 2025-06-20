@@ -4,6 +4,8 @@ import sys
 sys.path.append('.')
 from Service import empty, create_service
 from Parameters import make_filename
+sys.path.append('./1-Algorithms/Algorithms')
+from ML_QCELS import closest_unitary
 
 import subprocess, os, numpy as np
 from scipy.linalg import expm, eigh
@@ -330,20 +332,46 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False):
     else: statevector = ground_state
     use_F3C = parameters['system']=="TFI" and parameters['method_for_model']=="F"
     
+    num_timesteps = int(parameters['observables']/2)
+    if ML_QCELS:
+        time_steps = set()
+        iteration = 0
+        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        while len(time_steps) < num_timesteps:
+            for i in range(time_steps_per_itr):
+                time = 2**iteration*i
+                if time in time_steps: continue
+                time_steps.add(time)
+            iteration+=1
+        time_steps = np.sort(list(time_steps))
     gates = []
     if use_F3C:
         coupling = 1
-        if 'scaling' in parameters: scaling = parameters['scaling']
-        else: scaling = 1
-        gates = generate_TFIM_gates(parameters['sites'], parameters['num_timesteps'], Dt, parameters['g'], scaling, coupling, parameters['trotter'], '../f3cpp')
+        scaling = parameters['scaling']
+        sites = parameters['sites']
+        g = parameters['g']
+        trotter = parameters['trotter']
+        if not(parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+            gates = generate_TFIM_gates(sites, num_timesteps, Dt, g, scaling, coupling, trotter, '../f3cpp')
+        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+            for time_step in time_steps:
+                gates.append(generate_TFIM_gates(sites, 1, time_step*Dt, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
     else:
-        for i in range(parameters['num_timesteps']):
-            mat = expm(-1j*ham*Dt*i)
-            controlled_U = UnitaryGate(mat).control(annotated="yes")
-            gates.append(controlled_U)
+        if ML_QCELS:
+            for i in time_steps:
+                mat = expm(-1j*ham*Dt*i)
+                controlled_U = UnitaryGate(closest_unitary(mat)).control(annotated="yes")
+                gates.append(controlled_U)
+        else:
+            gates = []
+            for i in range(num_timesteps):
+                mat = expm(-1j*ham*Dt*i)
+                controlled_U = UnitaryGate(mat).control(annotated="yes")
+                gates.append(controlled_U)
+        
     return gates, statevector
 
-def generate_exp_vals(parameters, ML_QCELS=False):
+def generate_exp_vals(parameters):
     '''
     Generate the exp_vals spectrum
 
@@ -356,7 +384,8 @@ def generate_exp_vals(parameters, ML_QCELS=False):
     '''
 
     Dt = parameters['Dt']
-    num_timesteps = parameters['num_timesteps']
+    observables = parameters['observables']
+    num_timesteps = int(observables/2)
     H,_ = create_hamiltonian(parameters)
     E, vecs = eigh(H)
     ground_state = vecs[:,0]
@@ -364,11 +393,25 @@ def generate_exp_vals(parameters, ML_QCELS=False):
     spectrum = []
     for i in range(len(vecs)):
         spectrum.append(np.abs(sv.conj().T@vecs[:,i])**2)
-    all_exp_vals = []
-    exp_vals = []
-    for i in range(num_timesteps):
-        exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
-    all_exp_vals.append(exp_vals)
+    
+    all_exp_vals = {}
+    if not(parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+        exp_vals = []
+        for i in range(num_timesteps):
+            exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
+        all_exp_vals['linear'] = exp_vals
+    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+        exp_vals = {}
+        iteration = 0
+        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        while len(exp_vals) < num_timesteps:
+            for i in range(time_steps_per_itr):
+                time = 2**iteration*i
+                if time in exp_vals: continue
+                exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
+            iteration+=1
+        all_exp_vals['sparse'] = exp_vals
+    # if 'VQPE' in parameters['algorithms']:
     return all_exp_vals
 
 def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False):
@@ -385,13 +428,13 @@ def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False):
      - trans_qcs: the transpiled circuits
     '''
 
-    trans_qcs = []
+    tqcs = []
     gates, statevector = hadamard_test_circuit_info(Dt, parameters, ML_QCELS=ML_QCELS)
     for controlled_U in gates:
-        trans_qcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
-    return trans_qcs
+        tqcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
+    return tqcs
 
-def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location):
+def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location, include_0 = True):
     exe = location+"/release/examples/f3c_time_evolution_TFYZ"
     
     # calculate new scaled parameters
@@ -422,23 +465,24 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
         os.mkdir("TFIM_Operators")
     
     # add timestep where dt = 0
-    with open("TFIM_Operators/Operator_Generator.ini", 'w+') as f:
-        f.write("[Qubits]\nnumber = "+str(qubits)+"\n\n")
-        f.write("[Trotter]\nsteps = 1\ndt = 0\n\n") # maybe need new number for steps
-        f.write("[Jy]\nvalue = 0\n\n")
-        f.write("[Jz]\nvalue = "+str(coupling)+"\n\n")
-        f.write("[hx]\nramp = constant\nvalue = "+str(g)+"\n\n")
-        f.write("[Output]\nname = TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=\nimin = 1\nimax = 2\nstep = 1\n")
-    exe = location+"/release/examples/f3c_time_evolution_TFYZ"
-    with open("TFIM_Operators/garbage.txt", "w") as file:
-        subprocess.run([exe, "TFIM_Operators/Operator_Generator.ini"], stdout=file)
-    os.remove("TFIM_Operators/garbage.txt")
-    os.remove("TFIM_Operators/Operator_Generator.ini")
-    qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
-    gate = qc.to_gate(label = "TFIM 0").control()
-    gates.append(gate)
-    os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
-    steps -= 1
+    if include_0:
+        with open("TFIM_Operators/Operator_Generator.ini", 'w+') as f:
+            f.write("[Qubits]\nnumber = "+str(qubits)+"\n\n")
+            f.write("[Trotter]\nsteps = 1\ndt = 0\n\n") # maybe need new number for steps
+            f.write("[Jy]\nvalue = 0\n\n")
+            f.write("[Jz]\nvalue = "+str(coupling)+"\n\n")
+            f.write("[hx]\nramp = constant\nvalue = "+str(g)+"\n\n")
+            f.write("[Output]\nname = TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=\nimin = 1\nimax = 2\nstep = 1\n")
+        exe = location+"/release/examples/f3c_time_evolution_TFYZ"
+        with open("TFIM_Operators/garbage.txt", "w") as file:
+            subprocess.run([exe, "TFIM_Operators/Operator_Generator.ini"], stdout=file)
+        os.remove("TFIM_Operators/garbage.txt")
+        os.remove("TFIM_Operators/Operator_Generator.ini")
+        qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
+        gate = qc.to_gate(label = "TFIM 0").control()
+        gates.append(gate)
+        os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
+        steps -= 1
 
     steps *= trotter
     dt    /= trotter
@@ -470,43 +514,45 @@ def run(parameters, returns):
         os.mkdir('0-Data/Transpiled_Circuits')
         os.mkdir('0-Data/Expectation_Values')
     except: pass
+    used_time_series = []
+    if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']): used_time_series.append('linear')
+    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         Dt = parameters['Dt']
-        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
-            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
+        if 'linear' in used_time_series:
+            filename = '0-Data/Transpiled_Circuits/linear_'+make_filename(parameters)+'_Re.qpy'
             if empty(filename):
-                print('Creating file for Re Dt =', Dt)
+                print('Creating file for Linear Real Hadamard test with Dt =', Dt)
                 trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re')
                 with open(filename, 'wb') as file:
                     qpy.dump(trans_qcs, file)
             else:
-                print('File found for Re Dt =', Dt)
-            filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
+                print('File found for Linear Real Hadamard test with Dt =', Dt)
+            filename = '0-Data/Transpiled_Circuits/linear_'+make_filename(parameters)+'_Im.qpy'
             if empty(filename):
-                print('Creating file for Im Dt =', Dt)
+                print('Creating file for Linear Imaginary Hadamard test with Dt =', Dt)
                 trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im')
                 with open(filename, 'wb') as file:
                     qpy.dump(trans_qcs, file)
             else:
-                print('File found for Im Dt =', Dt)      
-
-        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
-            filename = '0-Data/Transpiled_Circuits/MLQCELS'+make_filename(parameters)+'_Re.qpy'
+                print('File found for Linear Imaginary Hadamard test with Dt =', Dt)      
+        if 'sparse' in used_time_series:
+            filename = '0-Data/Transpiled_Circuits/sparse_'+make_filename(parameters)+'_Re.qpy'
             if empty(filename):
-                print('Creating file for Re Dt =', Dt)
+                print('Creating file for Sparse Real Hadamard test with Dt =', Dt)
                 trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=True)
                 with open(filename, 'wb') as file:
                     qpy.dump(trans_qcs, file)
             else:
-                print('File found for Re Dt =', Dt)
-            filename = '0-Data/Transpiled_Circuits/MLQCELS'+make_filename(parameters)+'_Im.qpy'
+                print('File found for Sparse Real Hadamard test with Dt =', Dt)
+            filename = '0-Data/Transpiled_Circuits/sparse_'+make_filename(parameters)+'_Im.qpy'
             if empty(filename):
-                print('Creating file for Im Dt =', Dt)
+                print('Creating file for Sparse Imaginary Hadamard test with Dt =', Dt)
                 trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', ML_QCELS=True)
                 with open(filename, 'wb') as file:
                     qpy.dump(trans_qcs, file)
             else:
-                print('File found for Im Dt =', Dt)      
+                print('File found for Sparse Imaginary Hadamard test with Dt =', Dt)      
 
         print()
 
@@ -514,16 +560,28 @@ def run(parameters, returns):
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         trans_qcs = []
         Dt = parameters['Dt']
-        print('Loading data from file for Real Hadamard Tests')
-        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Re.qpy'
-        with open(filename, 'rb') as file:
-            qcs = qpy.load(file)
-            trans_qcs.append(qcs)
-        print('Loading data from file for Imaginary Hadamard Tests')
-        filename = '0-Data/Transpiled_Circuits/'+make_filename(parameters)+'_Im.qpy'
-        with open(filename, 'rb') as file:
-            qcs = qpy.load(file)
-            trans_qcs.append(qcs)
+        if 'linear' in used_time_series:
+            print('Loading data from file for Linear Real Hadamard Tests.')
+            filename = '0-Data/Transpiled_Circuits/linear_'+make_filename(parameters)+'_Re.qpy'
+            with open(filename, 'rb') as file:
+                qcs = qpy.load(file)
+                trans_qcs.append(qcs)
+            print('Loading data from file for Linear Imaginary Hadamard Tests.')
+            filename = '0-Data/Transpiled_Circuits/linear_'+make_filename(parameters)+'_Im.qpy'
+            with open(filename, 'rb') as file:
+                qcs = qpy.load(file)
+                trans_qcs.append(qcs)
+        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+            print('Loading data from file for Sparse Real Hadamard Tests.')
+            filename = '0-Data/Transpiled_Circuits/sparse_'+make_filename(parameters)+'_Re.qpy'
+            with open(filename, 'rb') as file:
+                qcs = qpy.load(file)
+                trans_qcs.append(qcs)
+            print('Loading data from file for Sparse Imaginary Hadamard Tests.')
+            filename = '0-Data/Transpiled_Circuits/sparse_'+make_filename(parameters)+'_Im.qpy'
+            with open(filename, 'rb') as file:
+                qcs = qpy.load(file)
+                trans_qcs.append(qcs)
         print()
         trans_qcs = sum(trans_qcs, []) # flatten list
         sampler = Sampler(backend)
@@ -579,20 +637,39 @@ def run(parameters, returns):
         create_hamiltonian(parameters)
         print()
     
-    all_exp_vals = []
+    all_exp_vals = {}
     if parameters['comp_type'] == 'C':
         print('Generating Data')
         all_exp_vals = generate_exp_vals(parameters)
     elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
-        num_timesteps = parameters['num_timesteps']
+        observables = parameters['observables']
+        num_timesteps = int(observables/2)
         shots = parameters['shots']
-        exp_vals = calc_all_exp_vals(results[0:2*num_timesteps], num_timesteps, shots)
-        all_exp_vals.append(exp_vals)
+        for i in range(len(used_time_series)):
+            if used_time_series[i] == 'sparse':
+                list_exp_vals = calc_all_exp_vals(results[i*observables:(i+1)*observables], num_timesteps, shots)
+                time_steps = set()
+                iteration = 0
+                time_steps_per_itr = parameters['ML_QCELS_time_steps']
+                while len(time_steps) < num_timesteps:
+                    for j in range(time_steps_per_itr):
+                        time = 2**iteration*j
+                        if time in time_steps: continue
+                        time_steps.add(time)
+                    iteration+=1
+                time_steps = np.sort(list(time_steps))
+                exp_vals = {}
+                for j in range(len(time_steps)):
+                    exp_vals[time_steps[j]] = list_exp_vals[j]
+                all_exp_vals[used_time_series[i]] = exp_vals
+            else: all_exp_vals[used_time_series[i]] = calc_all_exp_vals(results[i:observables*(i+1)], num_timesteps, shots)
+            
     # save expectation values
-    filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True)+'.pkl'
-    with open(filename, 'wb') as file:
-        pickle.dump(all_exp_vals[0], file)
-    print('Saved expectation values into file.', '('+filename+')')
+    for key in all_exp_vals.keys():
+        filename = '0-Data/Expectation_Values/'+key+'_'+make_filename(parameters, add_shots=True)+'.pkl'
+        with open(filename, 'wb') as file:
+            pickle.dump(all_exp_vals[key], file)
+        print('Saved expectation values into file.', '('+filename+')')
     return parameters
 
 def calc_all_exp_vals(results, num_timesteps, shots):

@@ -19,9 +19,10 @@ def run(parameters, max_itr=-1):
     except: pass
     try:
         filename = make_filename(parameters, add_shots=True)+'.pkl'
-        with open('0-Data/Expectation_Values/'+filename, 'rb') as file:
-            exp_vals = pickle.load(file)
-    except: print("Failed to grab expectation value data. Try generating the dataset")
+        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+            with open('0-Data/Expectation_Values/linear_'+filename, 'rb') as file:
+                exp_vals = pickle.load(file)
+    except: print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
     all_est_E_0s = []
     all_observables = []
     for algo in parameters['algorithms']:    
@@ -30,7 +31,7 @@ def run(parameters, max_itr=-1):
                 [observables, est_E_0s] = pickle.load(file)
             all_est_E_0s.append(est_E_0s)
             all_observables.append(observables)
-        except: print('Failed to grab energy estimates for'+algo+'. Try recalculating the results the algorithm.')
+        except: print('Failed to grab energy estimates for'+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
     H,real_E_0 = create_hamiltonian(parameters)
     E,vecs = eigh(H)
     # real_E_0 = E[0]
@@ -47,38 +48,42 @@ def run(parameters, max_itr=-1):
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
     plt.show()
 
-    plt.figure()
-    plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in exp_vals], label = 'Re')
-    plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in exp_vals], label = 'Im')
-    plt.legend()
-    plt.xlabel('Time')
-    plt.ylabel('Real Expectation Value')
-    plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
-    plt.show()
-
-
-    plt.figure()
-    plt.plot(fftshift(fftfreq(len(exp_vals), d=parameters['Dt'])), abs(fftshift(fft(exp_vals))), label = 'FFT')
-    plt.legend()
-    plt.xlabel('Frequency')
-    plt.ylabel('Amplitude')
-    plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
-    plt.show()
     
-    plt.figure()
+    if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+        plt.figure()
+        plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in exp_vals], label = 'Re')
+        plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in exp_vals], label = 'Im')
+        plt.xlabel('Time')
+        plt.ylabel('Real Expectation Value')
+        plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
+        plt.show()
+
+        plt.figure()
+        plt.plot(fftshift(fftfreq(len(exp_vals), d=parameters['Dt'])), abs(fftshift(fft(exp_vals))), label = 'FFT')
+        plt.legend()
+        plt.xlabel('Frequency')
+        plt.ylabel('Amplitude')
+        plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
+        plt.show()
+    
     use_shots = False
     xs = []
+    for i in range(len(all_est_E_0s)):
+        observables = all_observables[i]
+        if use_shots: total_shots = [w*parameters['shots'] for w in observables]
+        if use_shots: x=total_shots 
+        else: x=observables
+        xs.append(x)
+
+    plt.figure()
     for i in range(len(all_est_E_0s)):
         algo = parameters['algorithms'][i]
         observables = all_observables[i]
         est_E_0s = all_est_E_0s[i]
-        if use_shots: total_shots = [w*parameters['shots'] for w in observables]
+        x = xs[i]
         err = [abs(w-real_E_0) for w in est_E_0s]
-        if use_shots: x=total_shots 
-        else: x=observables
-        xs.append(x)
         plt.plot(x, err, label = algo)
     if max_itr != -1: plt.xlim([0, max_itr])
     plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
@@ -97,7 +102,7 @@ def run(parameters, max_itr=-1):
         plt.plot(xs[i], all_est_E_0s[i], markersize=4, label = parameters['algorithms'][i])
     eigs = np.linalg.eigvals(H)
     eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
-    longest_x = 2*max([len(i) for i in xs])
+    longest_x = max([i[-1] for i in xs])
 
     for i in range(len(eigs)):
         plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label = 'E'+str(i))
@@ -119,13 +124,20 @@ def isolate_graphs(parameters):
     except: pass
     try:
         filename = make_filename(parameters, add_shots=True)
-        graph_types = ['Spectrum', 'Expectation_Value', 'Fourier_Transform_Expectation_Value', 'Abs_Error', 'Convergence']
+        graph_types = ['Spectrum', 'Abs_Error', 'Convergence']
+        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+            graph_types.append('Expectation_Value')
+            graph_types.append('Fourier_Transform_Expectation_Value')
         for graph_type in graph_types:
             exit_code = os.system('cp 2-Graphing/Graphs/'+filename+'_'+graph_type+'.png Recent_Graphs/'+graph_type+'.png')
             assert(exit_code==0)
-        print('Successfully copied newly generated graphs. (Recent_Graphs/*.png)')
-    except:
-        print('One or more of the regularly generated graphs do not exist. Try regenerating the desired graphs.')
+        print('Successfully copied newly generated graphs. (', end ='')
+        for graph_type in graph_types[:len(graph_types)-1]:
+            print('Recent_Graphs/'+graph_type+'.png, ', end='') 
+        print('Recent_Graphs/'+graph_types[-1]+'.png)') 
+    except Exception as e:
+        print(e)
+        print('One or more of the regularly generated graphs does not exist. Try regenerating the desired graphs.')
 
 if __name__ == '__main__':
     import sys 
