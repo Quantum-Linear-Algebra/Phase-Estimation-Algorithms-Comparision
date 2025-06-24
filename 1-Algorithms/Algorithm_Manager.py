@@ -11,7 +11,6 @@ from ML_QCELS import ML_QCELS
 sys.path.append('./0-Data')
 
 def run(parameters, skipping=1):
-    reruns = parameters['reruns']
     filename = make_filename(parameters, add_shots=True)+'.pkl'
     all_exp_vals = []
     if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
@@ -28,10 +27,10 @@ def run(parameters, skipping=1):
     if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
         # Approximate what Hartree-Fock would estimate
         E_0 = parameters['scaled_E_0']
-        # lambda_prior = E_0
-        order = np.floor(np.log10(np.abs(E_0)))
-        digits = 2
-        lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
+        lambda_prior = E_0
+        # order = np.floor(np.log10(np.abs(E_0)))
+        # digits = 2
+        # lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
         print('Lambda Prior for QCELS based methods:', lambda_prior)
     for algo_name in parameters['algorithms']:
         all_observables = []
@@ -60,7 +59,7 @@ def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0,
     elif algo_name == 'ML_QCELS':
         est_E_0s, observables = ML_QCELS(exp_vals, parameters['Dt'], parameters['ML_QCELS_time_steps'], lambda_prior, sparse=parameters['const_obs'])
     elif algo_name == 'VQPE':
-        est_E_0s, observables = VQPE_ground_energy(exp_vals, Hexp_vals,  parameters['VQPE_svd_threshold'], skipping=skipping)
+        est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['pauli_strings']), parameters['VQPE_svd_threshold'], skipping=skipping, show_steps=False)
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']

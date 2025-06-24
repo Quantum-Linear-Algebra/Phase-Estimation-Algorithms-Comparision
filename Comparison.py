@@ -17,14 +17,14 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']   = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables'] = 200
+parameters['comp_type']   = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['observables'] = 1000
 parameters['sites']       = 2
-parameters['Dt']          = .5
+parameters['Dt']          = .01
 parameters['shots']       = 10**3
 parameters['scaling']     = 3/4*pi
 parameters['shifting']    = 0
-parameters['overlap']     = .8   # the initial state overlap
+parameters['overlap']     = 1   # the initial state overlap
 
 # SPECIFIC SYSTEM TYPE
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
@@ -47,15 +47,16 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['ODMD', 'UVQPE', 'QCELS', 'ML_QCELS'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['const_obs'] = True
+parameters['reruns'] = 1
 parameters['ODMD_svd_threshold'] = 10**-1
 parameters['VQPE_svd_threshold'] = 10**-1
 parameters['UVQPE_svd_threshold'] = 10**-1
 parameters['ML_QCELS_time_steps'] = 5
-parameters['ML_QCELS_calc_Dt'] = True
+parameters['ML_QCELS_calc_Dt'] = False
 parameters['fourier_filtering'] = False
-parameters['const_obs'] = True
-parameters['reruns'] = 5
+
 
 if __name__ == "__main__":
     returns = param.check(parameters)

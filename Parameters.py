@@ -1,10 +1,11 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
-from numpy import pi, sqrt
 from scipy.linalg import eigh
+from numpy import ceil
 from Service import create_hardware_backend
 from sys import exit
 import pickle
+from qiskit.quantum_info import Operator, SparsePauliOp
 
 def check(parameters):
     print('Setting up parameters.')
@@ -110,6 +111,11 @@ def check(parameters):
         if 'VQPE' in parameters['algorithms']:
             if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
             used_variables.append('VQPE_svd_threshold')
+            parameters['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
+            total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
+            if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
+                parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
+            used_variables.append('pauli_strings')
         
         keys = []
         for i in parameters.keys():
@@ -156,7 +162,10 @@ def make_filename(parameters, add_shots = False):
     string+='_shift='+str(parameters['shifting'])
     string+='_overlap='+str(parameters['overlap'])
     string+='_Dt='+str(parameters['Dt'])
-    string += '_obs='+str(parameters['observables'])
+    if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
+        string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
+    else:
+        string += '_obs='+str(parameters['observables'])
     if add_shots and parameters['comp_type'] != 'C':
         string += '_reruns='+str(parameters['reruns'])
         string += '_shots='+str(parameters['shots'])
