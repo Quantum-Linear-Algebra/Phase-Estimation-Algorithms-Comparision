@@ -19,7 +19,7 @@ def check(parameters):
     if 'overlap' not in parameters: parameters['overlap'] = 1
     assert(0<=parameters['overlap']<=1)
     for algo in parameters['algorithms']:
-        assert(algo in ['UVQPE','ODMD','QCELS', 'ML_QCELS'])
+        assert(algo in ['VQPE','UVQPE','ODMD','QCELS','ML_QCELS'])
 
     
     returns = {}
@@ -33,8 +33,13 @@ def check(parameters):
         parameters['algorithms'] = algos
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0']
-        if parameters['comp_type'] != 'C': used_variables.append('shots')
+        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv']
+        if parameters['comp_type'] != 'C':
+            used_variables.append('shots')
+            if 'shots' not in parameters: parameters['shots'] = 100
+            if 'reruns' not in parameters: parameters['reruns'] = 1
+        else:
+            parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
             used_variables.append('g')
             if parameters['comp_type'] != 'C':
@@ -64,16 +69,18 @@ def check(parameters):
         elif parameters['system'] == 'H_2':
             used_variables.append('distance')
             parameters['sites']=1
-        # remove extra keys
+        
         import sys
         sys.path.append('0-Data')
-        from Data_Manager import create_hamiltonian
+        from Data_Manager import create_hamiltonian, make_overlap
         H,real_E_0 =create_hamiltonian(parameters)
         parameters['real_E_0'] = real_E_0
-        energy,_ = eigh(H)
+        energy,eig_vec = eigh(H)
+        parameters['sv'] = make_overlap(eig_vec[:,0], parameters['overlap'])
         parameters['scaled_E_0'] = energy[0]
         
         if 'const_obs' not in parameters: parameters['const_obs'] = False
+
         
         if 'ML_QCELS' in parameters['algorithms']:
             # make sure the time steps per iteration is defined
@@ -100,6 +107,9 @@ def check(parameters):
         if 'UVQPE' in parameters['algorithms']:
             if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
             used_variables.append('UVQPE_svd_threshold')
+        if 'VQPE' in parameters['algorithms']:
+            if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
+            used_variables.append('VQPE_svd_threshold')
         
         keys = []
         for i in parameters.keys():
@@ -147,6 +157,8 @@ def make_filename(parameters, add_shots = False):
     string+='_overlap='+str(parameters['overlap'])
     string+='_Dt='+str(parameters['Dt'])
     string += '_obs='+str(parameters['observables'])
-    if add_shots and parameters['comp_type'] != 'C': string += '_shots='+str(parameters['shots'])
+    if add_shots and parameters['comp_type'] != 'C':
+        string += '_reruns='+str(parameters['reruns'])
+        string += '_shots='+str(parameters['shots'])
     return string
 

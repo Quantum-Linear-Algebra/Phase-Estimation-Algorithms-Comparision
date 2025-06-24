@@ -6,50 +6,65 @@ sys.path.append('./1-Algorithms/Algorithms')
 import numpy as np
 from ODMD import ODMD
 from QCELS import QCELS
-from UVQPE import UVQPE_ground_energy
+from UVQPE import UVQPE_ground_energy, VQPE_ground_energy
 from ML_QCELS import ML_QCELS
 sys.path.append('./0-Data')
 
 def run(parameters, skipping=1):
+    reruns = parameters['reruns']
     filename = make_filename(parameters, add_shots=True)+'.pkl'
-    exp_vals = []
+    all_exp_vals = []
     if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
         with open('0-Data/Expectation_Values/linear_'+filename, 'rb') as file:
-            exp_vals = pickle.load(file)
-
-    if parameters['const_obs']: 
+            all_exp_vals = pickle.load(file)
+    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: 
         with open('0-Data/Expectation_Values/sparse_'+filename, 'rb') as file:
-            sparse_exp_vals = pickle.load(file)
+            all_sparse_exp_vals = pickle.load(file)
+    if 'VQPE' in parameters['algorithms']:
+        with open('0-Data/Expectation_Values/vqpets_'+filename, 'rb') as file:
+            all_Hexp_vals = pickle.load(file)
     print()
-    for algo_name in parameters['algorithms']:
-        ev = exp_vals
-        if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = sparse_exp_vals
-        run_single_algo(algo_name, ev, filename, parameters, skipping=skipping)
-
-def run_single_algo(algo_name, exp_vals, filename, parameters, skipping=1):
-    print('Running', algo_name, 'with Dt =', parameters['Dt'])
-
-    # Approximate what Hartree-Fock would estimate
-    if algo_name == 'QCELS' or algo_name == 'ML_QCELS':
-        order = np.floor(np.log10(-parameters['scaled_E_0']))
-        lambda_prior = -(float(f"{parameters['scaled_E_0']:0.5}") + np.random.rand()*(10**(order-4)))
     
+    if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
+        # Approximate what Hartree-Fock would estimate
+        E_0 = parameters['scaled_E_0']
+        # lambda_prior = E_0
+        order = np.floor(np.log10(np.abs(E_0)))
+        digits = 2
+        lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
+        print('Lambda Prior for QCELS based methods:', lambda_prior)
+    for algo_name in parameters['algorithms']:
+        all_observables = []
+        all_est_E_0s = []
+        for run in range(len(all_exp_vals)):
+            ev = all_exp_vals[run]
+            if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = all_sparse_exp_vals[run]
+            if algo_name == 'VQPE': Hexp_vals = all_Hexp_vals[run]
+            print(str(run+1)+': Running', algo_name, 'with Dt =', parameters['Dt'])  
+            if algo_name == 'QCELS' or algo_name == 'ML_QCELS': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, lambda_prior=lambda_prior)
+            if algo_name == 'VQPE': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, Hexp_vals=Hexp_vals)
+            else: observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping)
+            all_observables.append(observables)
+            all_est_E_0s.append(est_E_0s)
+        with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
+            pickle.dump([all_observables, all_est_E_0s], file)
+        print('Saved', algo_name+'\'s results into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
+
+def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0, Hexp_vals=[]):  
     if algo_name == 'QCELS':
         est_E_0s, observables = QCELS(exp_vals, parameters['Dt'], lambda_prior, skipping=skipping)
     elif algo_name == 'ODMD':
-        svd_threshold = 10**-6
         est_E_0s, observables = ODMD(exp_vals, parameters['Dt'], parameters['ODMD_svd_threshold'], len(exp_vals), skipping=skipping)
     elif algo_name == 'UVQPE':
-        svd_threshold = 10**-6
-        est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps=False)
+        est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
         est_E_0s, observables = ML_QCELS(exp_vals, parameters['Dt'], parameters['ML_QCELS_time_steps'], lambda_prior, sparse=parameters['const_obs'])
+    elif algo_name == 'VQPE':
+        est_E_0s, observables = VQPE_ground_energy(exp_vals, Hexp_vals,  parameters['VQPE_svd_threshold'], skipping=skipping)
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']
-    with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
-        pickle.dump([observables, est_E_0s], file)
-    print('Saved', algo_name+'\'s results into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
+    return observables, est_E_0s
 
 if __name__ == '__main__':
     import sys 

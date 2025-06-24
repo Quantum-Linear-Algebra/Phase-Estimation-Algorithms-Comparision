@@ -3,12 +3,12 @@ from scipy.linalg import svd
 from scipy.optimize import minimize
 
 def arrange_Z_ests(old_Z_ests, ts, sparse):
-    
     if sparse:
         max = np.sort(list(old_Z_ests.keys()))[-1]
         iterations = int(np.log2(max/ts))+1
     else:
-        iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1))) + 1)
+        iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1)))) + 1
+    
     Z_ests = []
     for iter in range(iterations):
         Z_ests.append([])
@@ -98,13 +98,12 @@ def ML_QCELS(Z_ests, Dt, ts, lambda_prior, sparse=False):
     est_E_0s = []
     Z_ests = arrange_Z_ests(Z_ests, ts, sparse=sparse)
     iterations = len(Z_ests)
-    for iter in range(0, iterations):
+    for iter in range(iterations+1):
         ground_energy_estimate_QCELS= qcels_largeoverlap(Z_ests[:iter+1], ts, lambda_prior, Dt)
         times = set()
-        for itr in range(iter+1):
-            time_series = Z_ests[itr]
-            for time in time_series:
-                times.add(time)
+        for i in range(iter+1):
+            for j in range(ts):
+                times.add((2**i)*j)
         observables.append(2*len(times))
         est_E_0 = ground_energy_estimate_QCELS.x[2] 
         est_E_0s.append(est_E_0)
