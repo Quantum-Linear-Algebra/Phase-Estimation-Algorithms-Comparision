@@ -360,7 +360,19 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string=''):
         ham,_ = create_hamiltonian(parameters)
         if ML_QCELS:
             for i in time_steps:
-                mat = expm(-1j*ham*Dt*i)
+                exp_ham = -1j*ham*i*Dt
+                max_mag = 0
+                for j in range(len(exp_ham)):
+                    for k in range(len(exp_ham[j])):
+                        mag = abs(exp_ham[j][k])
+                        if max_mag < mag:
+                            max_mag = mag
+                if max_mag > 10**17:
+                    scale = 10**17/max_mag
+                    for j in range(len(exp_ham)):
+                        for k in range(len(exp_ham[j])):
+                            exp_ham[j][k] *= scale
+                mat = expm(exp_ham)
                 controlled_U = UnitaryGate(closest_unitary(mat)).control(annotated="yes")
                 gates.append(controlled_U)
         else:
