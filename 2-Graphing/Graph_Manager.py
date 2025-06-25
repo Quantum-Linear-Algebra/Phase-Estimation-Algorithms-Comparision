@@ -50,7 +50,7 @@ def run(parameters, max_itr=-1):
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
     plt.show()
 
-    alpha = 1/len(all_exp_vals)
+    alpha = 1/len(all_est_E_0s)
     if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
         plt.figure()
         avg_exp_vals = np.zeros(len(all_exp_vals[0]), dtype=complex)

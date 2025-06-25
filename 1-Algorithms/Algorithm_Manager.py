@@ -1,5 +1,5 @@
 import pickle
-import sys
+import sys, os
 sys.path.append('.')
 from Parameters import make_filename
 sys.path.append('./1-Algorithms/Algorithms')
@@ -35,9 +35,12 @@ def run(parameters, skipping=1):
     for algo_name in parameters['algorithms']:
         all_observables = []
         all_est_E_0s = []
-        for run in range(len(all_exp_vals)):
-            ev = all_exp_vals[run]
+        loop_num = len(all_exp_vals)
+        if parameters['algorithms'] == ['ML_QCELS'] and parameters['const_obs']:
+            loop_num = len(all_sparse_exp_vals)
+        for run in range(loop_num):              
             if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = all_sparse_exp_vals[run]
+            else: ev = all_exp_vals[run]
             if algo_name == 'VQPE': Hexp_vals = all_Hexp_vals[run]
             print(str(run+1)+': Running', algo_name, 'with Dt =', parameters['Dt'])  
             if algo_name == 'QCELS' or algo_name == 'ML_QCELS': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, lambda_prior=lambda_prior)
@@ -45,6 +48,8 @@ def run(parameters, skipping=1):
             else: observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping)
             all_observables.append(observables)
             all_est_E_0s.append(est_E_0s)
+        try: os.mkdir('1-Algorithms/Results')
+        except: pass
         with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
             pickle.dump([all_observables, all_est_E_0s], file)
         print('Saved', algo_name+'\'s results into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
