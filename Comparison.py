@@ -17,8 +17,8 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']   = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables'] = 1000
+parameters['comp_type']   = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['observables'] = 100
 parameters['sites']       = 2
 parameters['Dt']          = .01
 parameters['shots']       = 10**3
@@ -47,9 +47,9 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithms
-parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['algorithms'] = ['VQPE'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
 parameters['const_obs'] = True
-parameters['reruns'] = 1
+parameters['reruns'] = 2
 parameters['ODMD_svd_threshold'] = 10**-1
 parameters['VQPE_svd_threshold'] = 10**-1
 parameters['UVQPE_svd_threshold'] = 10**-1
