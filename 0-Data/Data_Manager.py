@@ -727,7 +727,7 @@ def run(parameters, returns):
                             index = i*observables//((len(pauli_strings)+1))+r*observables
                         else:
                             # last term adjusts the index to account for the fact that the VQPE time series data is slightly shorter
-                            index = (i+r*len(used_time_series))*observables-r*observables//((len(pauli_strings)+1))
+                            index = i*observables + r*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
                     else: index = (i+r*(len(used_time_series)+len(pauli_strings)-1))*observables
                 else: index = (i+r*len(used_time_series))*observables
                 print('index', index, used_time_series[i])

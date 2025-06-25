@@ -1,7 +1,7 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from scipy.linalg import eigh
-from numpy import ceil
+from numpy import ceil, sqrt
 from Service import create_hardware_backend
 from sys import exit
 import pickle
@@ -82,7 +82,14 @@ def check(parameters):
         
         if 'const_obs' not in parameters: parameters['const_obs'] = False
 
-        
+        if 'VQPE' in parameters['algorithms']:
+            if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
+            used_variables.append('VQPE_svd_threshold')
+            parameters['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
+            total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
+            if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
+                parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
+            used_variables.append('pauli_strings')
         if 'ML_QCELS' in parameters['algorithms']:
             # make sure the time steps per iteration is defined
             if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
@@ -100,7 +107,7 @@ def check(parameters):
                     iteration+=1
                 parameters['observables'] = len(exp_vals)*2
             if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
-                delta = 1 #*sqrt(1-parameters['overlap'])
+                delta = 1*sqrt(1-parameters['overlap'])
                 parameters['Dt'] = delta/parameters['ML_QCELS_time_steps']
         if 'ODMD' in parameters['algorithms']:
             if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
@@ -108,14 +115,6 @@ def check(parameters):
         if 'UVQPE' in parameters['algorithms']:
             if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
             used_variables.append('UVQPE_svd_threshold')
-        if 'VQPE' in parameters['algorithms']:
-            if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
-            used_variables.append('VQPE_svd_threshold')
-            parameters['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
-            total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
-            if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
-                parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
-            used_variables.append('pauli_strings')
         
         keys = []
         for i in parameters.keys():
