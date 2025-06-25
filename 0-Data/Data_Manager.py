@@ -716,12 +716,21 @@ def run(parameters, returns):
         observables = parameters['observables']
         num_timesteps = int(observables/2)
         shots = parameters['shots']
+        print('results', len(results))
         for r in range(reruns):
             print('Run', r+1)
             print('  Calculating the expectation values from circuit data.')
             for i in range(len(used_time_series)):
-                if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']: index = (i+r*len(used_time_series))*observables//((len(pauli_strings)+1))
+                if 'VQPE' in parameters['algorithms']:
+                    if parameters['const_obs']:
+                        if parameters['algorithms'] == ['VQPE']:
+                            index = i*observables//((len(pauli_strings)+1))+r*observables
+                        else:
+                            # last term adjusts the index to account for the fact that the VQPE time series data is slightly shorter
+                            index = (i+r*len(used_time_series))*observables-r*observables//((len(pauli_strings)+1))
+                    else: index = (i+r*(len(used_time_series)+len(pauli_strings)-1))*observables
                 else: index = (i+r*len(used_time_series))*observables
+                print('index', index, used_time_series[i])
                 if used_time_series[i] == 'sparse':
                     list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
                     time_steps = set()
@@ -741,13 +750,13 @@ def run(parameters, returns):
                 elif used_time_series[i] == 'vqpets':
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
+                    print('vqpe_obs', vqpe_obs)
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
                     for p in range(len(pauli_string)):
                         start = index+p*vqpe_obs
                         pauli_string = pauli_strings.paulis[p]
                         coeff = pauli_strings.coeffs[p]
                         exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
-                        print(len(exp_vals))
                         Hexp_vals += [i*coeff for i in exp_vals]
                     all_exp_vals['vqpets'].append(Hexp_vals)
                 elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
