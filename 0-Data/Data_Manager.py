@@ -539,7 +539,6 @@ def run(parameters, returns):
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
     try:
         os.mkdir('0-Data/Transpiled_Circuits')
-        os.mkdir(', all_exp_vals[0][i]')
     except: pass
     used_time_series = []
     if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']): used_time_series.append('linear')
@@ -716,7 +715,6 @@ def run(parameters, returns):
         observables = parameters['observables']
         num_timesteps = int(observables/2)
         shots = parameters['shots']
-        print('results', len(results))
         for r in range(reruns):
             print('Run', r+1)
             print('  Calculating the expectation values from circuit data.')
@@ -730,7 +728,6 @@ def run(parameters, returns):
                             index = i*observables + r*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
                     else: index = (i+r*(len(used_time_series)+len(pauli_strings)-1))*observables
                 else: index = (i+r*len(used_time_series))*observables
-                print('index', index, used_time_series[i])
                 if used_time_series[i] == 'sparse':
                     list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
                     time_steps = set()
@@ -750,7 +747,6 @@ def run(parameters, returns):
                 elif used_time_series[i] == 'vqpets':
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
-                    print('vqpe_obs', vqpe_obs)
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
                     for p in range(len(pauli_string)):
                         start = index+p*vqpe_obs
