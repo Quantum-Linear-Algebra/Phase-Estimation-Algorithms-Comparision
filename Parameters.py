@@ -83,17 +83,17 @@ def check(parameters):
         if 'const_obs' not in parameters: parameters['const_obs'] = False
 
         if 'VQPE' in parameters['algorithms']:
-            if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
             used_variables.append('VQPE_svd_threshold')
+            if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
+            used_variables.append('pauli_strings')
             parameters['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
             total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
             if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
                 parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
-            used_variables.append('pauli_strings')
         if 'ML_QCELS' in parameters['algorithms']:
             # make sure the time steps per iteration is defined
-            if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
             used_variables.append('ML_QCELS_time_steps')
+            if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
             # adjust the observables so that all algorithms match ML_QCELS's observables
             if parameters['const_obs']:
                 iteration = 0
@@ -110,12 +110,27 @@ def check(parameters):
                 delta = 1*sqrt(1-parameters['overlap'])
                 parameters['Dt'] = delta/parameters['ML_QCELS_time_steps']
         if 'ODMD' in parameters['algorithms']:
-            if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
             used_variables.append('ODMD_svd_threshold')
+            if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
         if 'UVQPE' in parameters['algorithms']:
-            if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
             used_variables.append('UVQPE_svd_threshold')
+            if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
         
+        used_variables.append('fourier_filtering')
+        if 'fourier_filtering' in parameters:
+            if parameters['fourier_filtering']:
+                used_variables.append('gamma_range')
+                if 'gamma_range' not in parameters:
+                    parameters['gamma_range'] = (1,3)
+                else:
+                    assert(parameters['gamma_range'][0]<parameters['gamma_range'][1])
+                used_variables.append('filter_count')
+                if 'filter_count' not in parameters:
+                    parameters['filter_count'] = 6
+                else:
+                    assert(parameters['filter_count']>0)
+        else:
+            parameters['fourier_filtering'] = False
         keys = []
         for i in parameters.keys():
             keys.append(i)

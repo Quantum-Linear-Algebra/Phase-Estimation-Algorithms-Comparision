@@ -537,16 +537,16 @@ def run(parameters, returns):
     backend = returns['backend']
     reruns = parameters['reruns']
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
-    try:
-        os.mkdir('0-Data/Transpiled_Circuits')
-        os.mkdir(', all_exp_vals[0][i]')
-    except: pass
+
     used_time_series = []
     if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']): used_time_series.append('linear')
     if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
-    if 'VQPE' in parameters['algorithms']:
-        used_time_series.append('vqpets')
+    if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
+    
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
+        try: os.mkdir('0-Data/Transpiled_Circuits')
+        except: pass
+
         Dt = parameters['Dt']
         if 'linear' in used_time_series:
             filename = '0-Data/Transpiled_Circuits/linear_'+make_filename(parameters)+'_Re.qpy'
@@ -608,8 +608,6 @@ def run(parameters, returns):
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         trans_qcs = []
         Dt = parameters['Dt']
-        try: os.mkdir('0-Data/Transpiled_Circuits')
-        except: pass
         for run in range(reruns):
             print('Run', run+1)
             if 'linear' in used_time_series:
@@ -762,7 +760,35 @@ def run(parameters, returns):
                 elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
                     all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots))
                 else: all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables], shots))
-            
+    
+    from scipy.fft import fft, ifft
+    # fourier filtering
+    if parameters['fourier_filtering']:
+        gamma_range = parameters['gamma_range']
+        filter_count = parameters['filter_count']
+        gammas = np.linspace(gamma_range[0], gamma_range[1], filter_count)
+        fourier_all_exp_vals = {}
+        for key in all_exp_vals:
+            if key == 'sparse':
+                pass
+            else:
+                fourier_all_exp_vals[key] = []
+                for exp_vals in all_exp_vals[key]:
+                    filtered_exp_vals = []
+                    fft_exp_vals = fft(exp_vals)
+                    fft_median = np.median(fft_exp_vals)
+                    for gamma in gammas:
+                        new_exp_vals = ifft([i*(i>gamma*fft_median) for i in fft_exp_vals])
+                        filtered_exp_vals.append(new_exp_vals)
+                    fourier_all_exp_vals[key].append(filtered_exp_vals)
+        for key in fourier_all_exp_vals:
+            try: os.mkdir('0-Data/Expectation_Values/Denoised')
+            except: pass
+            filename = '0-Data/Expectation_Values/Denoised/'+key+'_gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'_filters='+str(filter_count)+'_'+make_filename(parameters, add_shots=True)+'.pkl'
+            with open(filename, 'wb') as file:
+                pickle.dump(new_exp_vals, file)
+            print('Saved expectation values into file.', '('+filename+')')
+
     # save expectation values
     try: os.mkdir('0-Data/Expectation_Values')
     except: pass

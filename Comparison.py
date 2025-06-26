@@ -46,16 +46,22 @@ parameters['y'] = 1 # y size of latice (HUBB)
 # H_2 Parameters
 parameters['distance'] = .5
 
-# Algorithms
-parameters['algorithms'] = ['VQPE'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
-parameters['const_obs'] = True
-parameters['reruns'] = 2
-parameters['ODMD_svd_threshold'] = 10**-1
-parameters['VQPE_svd_threshold'] = 10**-1
+# Algorithm Paramters
+parameters['algorithms'] = ['ODMD', 'VQPE'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['const_obs']  = True
+parameters['reruns']     = 2
+
+# Algorithm Specific Parameters
+parameters['ODMD_svd_threshold']  = 10**-1
+parameters['VQPE_svd_threshold']  = 10**-1
 parameters['UVQPE_svd_threshold'] = 10**-1
 parameters['ML_QCELS_time_steps'] = 5
-parameters['ML_QCELS_calc_Dt'] = False
-parameters['fourier_filtering'] = False
+parameters['ML_QCELS_calc_Dt']    = False
+
+# Fourier Filtering Parameters
+parameters['fourier_filtering'] = True
+parameters['gamma_range']       = (1,3) # (min, max)
+parameters['filter_count']      = 6
 
 
 if __name__ == "__main__":

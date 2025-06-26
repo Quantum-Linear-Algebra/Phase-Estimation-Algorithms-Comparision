@@ -27,10 +27,10 @@ def run(parameters, skipping=1):
     if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
         # Approximate what Hartree-Fock would estimate
         E_0 = parameters['scaled_E_0']
-        lambda_prior = E_0
-        # order = np.floor(np.log10(np.abs(E_0)))
-        # digits = 2
-        # lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
+        # lambda_prior = E_0
+        order = np.floor(np.log10(np.abs(E_0)))
+        digits = 2
+        lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
         print('Lambda Prior for QCELS based methods:', lambda_prior)
     for algo_name in parameters['algorithms']:
         all_observables = []
@@ -42,9 +42,10 @@ def run(parameters, skipping=1):
             if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = all_sparse_exp_vals[run]
             else: ev = all_exp_vals[run]
             if algo_name == 'VQPE': Hexp_vals = all_Hexp_vals[run]
+
             print(str(run+1)+': Running', algo_name, 'with Dt =', parameters['Dt'])  
             if algo_name == 'QCELS' or algo_name == 'ML_QCELS': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, lambda_prior=lambda_prior)
-            if algo_name == 'VQPE': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, Hexp_vals=Hexp_vals)
+            elif algo_name == 'VQPE': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, Hexp_vals=Hexp_vals)
             else: observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping)
             all_observables.append(observables)
             all_est_E_0s.append(est_E_0s)
