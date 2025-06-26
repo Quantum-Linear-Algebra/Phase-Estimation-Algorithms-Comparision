@@ -37,7 +37,6 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     St = np.diag(d)
     if show_steps: print('St=', St)
     eig_vals,_ = eig(Ht,St)
-    # eig_vals = -(np.log(eig_vals)/Dt).imag
     if show_steps: print('Eigenvalues:', eig_vals)
     return eig_vals
 
@@ -68,14 +67,13 @@ def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     V = V[:,::-1]
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
-    if show_steps: print('S Eigen Values',d)
+    if show_steps: print('S Eigenvalues',d)
     d = d[:filter]
-    if show_steps: print('Filtered S Eigen Values',d)
+    if show_steps: print('Filtered S Eigenvalues',d)
     Ht = V.conj().T@H@V
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
     if show_steps: print('St=', St)   
-
     eig_vals,_ = eig(Ht,St)
     if show_steps: print('Exponentiated eigenvalues:', eig_vals)
     eig_vals = -(np.log(eig_vals)/Dt).imag
@@ -89,7 +87,7 @@ def UVQPE_ground_energy(exp_vals, Dt,  svd_threshold, skipping=1, show_steps = F
         if i < 2: est_E_0s.append(0);continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = UVQPE(exp_vals[:i+1], Dt, svd_threshold, show_steps=show_steps)
-        est_E_0s.append(min(eig_vals))
+        est_E_0s.append(eig_vals[0])
     return est_E_0s, [2*i for i in indexes]
 
 def VQPE_ground_energy(exp_vals, Hexp_vals, num_pauli_string, svd_threshold, skipping=1, show_steps = False):
@@ -99,5 +97,5 @@ def VQPE_ground_energy(exp_vals, Hexp_vals, num_pauli_string, svd_threshold, ski
         if i < 2: est_E_0s.append(0); continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = VQPE(exp_vals[:i+1], Hexp_vals[:i+1], svd_threshold, show_steps=show_steps)
-        est_E_0s.append(min(eig_vals))
+        est_E_0s.append(eig_vals[0])
     return est_E_0s, [(num_pauli_string+1)*2*(i+1) for i in indices]

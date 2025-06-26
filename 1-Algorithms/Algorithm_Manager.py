@@ -8,7 +8,7 @@ from numpy.linalg import norm
 from scipy.linalg import eig
 from ODMD import ODMD
 from QCELS import QCELS
-from UVQPE import UVQPE_ground_energy, VQPE_ground_energy
+from VQPE import VQPE_ground_energy, UVQPE_ground_energy
 from ML_QCELS import ML_QCELS
 sys.path.append('./0-Data')
 
