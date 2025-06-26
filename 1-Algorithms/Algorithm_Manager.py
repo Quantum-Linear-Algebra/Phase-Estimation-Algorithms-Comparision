@@ -64,7 +64,7 @@ def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0,
     elif algo_name == 'ODMD':
         est_E_0s, observables = ODMD(exp_vals, parameters['Dt'], parameters['ODMD_svd_threshold'], len(exp_vals), skipping=skipping)
     elif algo_name == 'UVQPE':
-        est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps = True)
+        est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps = False)
     elif algo_name == 'ML_QCELS':
         assert(lambda_prior != 0)
         est_E_0s, observables = ML_QCELS(exp_vals, parameters['Dt'], parameters['ML_QCELS_time_steps'], lambda_prior, sparse=parameters['const_obs'])
