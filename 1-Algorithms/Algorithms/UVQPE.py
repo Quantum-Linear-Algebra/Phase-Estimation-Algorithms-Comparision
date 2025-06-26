@@ -17,14 +17,15 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     Returns:
      - eig_vals: the estimated eigenvalues of the system
     '''
-    H = toeplitz(Hexp_vals)
+    # toeplitz().T sets the input to the top row instead of the first column
+    H = toeplitz(Hexp_vals).T 
     if show_steps: print('H=',H)
-    S = toeplitz(exp_vals)
+    S = toeplitz(exp_vals).T
     if show_steps: print('S=',S)
-    d,V = eig(S)
-    idx = d.argsort()[::-1]
-    d = d[idx]
-    V = V[:,idx]
+    # eigenvalues are sorted with eigh
+    d,V = eigh(S)
+    d = d[::-1]
+    V = V[:,::-1]
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
     if show_steps: print('Singular Values',d)
@@ -54,29 +55,26 @@ def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     Returns:
      - eig_vals: the estimated eigenvalues of the system
     '''
-    if len(exp_vals)<=2: col = exp_vals[:len(exp_vals)]
+    if len(exp_vals)<=2: row = exp_vals[:len(exp_vals)]
     else: col = np.concatenate([[exp_vals[1]], [exp_vals[0]],np.conj(exp_vals[1:-2])])
     H = toeplitz(col, exp_vals[1:])
     if show_steps: print('H=',H)
-    S = toeplitz(exp_vals[:-1])
+    # toeplitz().T sets the input to the top row instead of the first column
+    S = toeplitz(exp_vals[:-1]).T
     if show_steps: print('S=',S)
+    # eigenvalues are sorted with eigh
     d,V = eigh(S)
-    idx = d.argsort()[::-1]
-    d = d[idx]
-    V = V[:,idx]
+    d = d[::-1]
+    V = V[:,::-1]
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
-    if show_steps: print('Singular Values',d)
+    if show_steps: print('S Eigen Values',d)
     d = d[:filter]
-    if show_steps: print('Filtered Singular Values',d)
+    if show_steps: print('Filtered S Eigen Values',d)
     Ht = V.conj().T@H@V
-    # Ht = (Ht + Ht.conj().T)/2
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
-    if show_steps: print('St=', St)
-    # from Algorithm_Manager import gep_condition_number
-    # gep_condition_number(Ht, St, lam, x, y)
-    
+    if show_steps: print('St=', St)   
 
     eig_vals,_ = eig(Ht,St)
     if show_steps: print('Exponentiated eigenvalues:', eig_vals)

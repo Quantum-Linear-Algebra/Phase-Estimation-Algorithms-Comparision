@@ -778,9 +778,11 @@ def run(parameters, returns):
                         new_exp_vals = ifft([i*(i>gamma*fft_median) for i in fft_exp_vals])
                         filtered_exp_vals.append(new_exp_vals)
                     fourier_all_exp_vals[key].append(filtered_exp_vals)
+        try: 
+            os.mkdir('0-Data/Expectation_Values')
+            os.mkdir('0-Data/Expectation_Values/Denoised')
+        except: pass
         for key in fourier_all_exp_vals:
-            try: os.mkdir('0-Data/Expectation_Values/Denoised')
-            except: pass
             filename = '0-Data/Expectation_Values/Denoised/'+key+'_gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'_filters='+str(filter_count)+'_'+make_filename(parameters, add_shots=True)+'.pkl'
             with open(filename, 'wb') as file:
                 pickle.dump(new_exp_vals, file)
@@ -793,8 +795,7 @@ def run(parameters, returns):
         filename = '0-Data/Expectation_Values/'+key+'_'+make_filename(parameters, add_shots=True)+'.pkl'
         with open(filename, 'wb') as file:
             pickle.dump(all_exp_vals[key], file)
-        print('Saved expectation values into file.', '('+filename+')')
-    
+        print('Saved expectation values into file.', '('+filename+')')  
     
 
 def calc_all_exp_vals(results, shots):
