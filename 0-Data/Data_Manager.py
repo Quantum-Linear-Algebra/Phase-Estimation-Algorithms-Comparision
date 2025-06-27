@@ -748,7 +748,6 @@ def run(parameters, returns):
                 elif used_time_series[i] == 'vqpets':
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
-                    print(vqpe_obs)
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
                     for p in range(len(pauli_string)):
                         start = index+p*vqpe_obs
