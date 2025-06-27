@@ -433,9 +433,11 @@ def generate_exp_vals(parameters, reruns):
                     exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
                 iteration+=1
             all_exp_vals['sparse'].append(exp_vals)
-        if 'VQPE' in parameters['algorithms']:
+        if 'vqpets' in all_exp_vals:
             exp_vals = []
-            for i in range(num_timesteps):
+            length = num_timesteps
+            if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
+            for i in range(length):
                 exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
             all_exp_vals['vqpets'].append(exp_vals)
     return all_exp_vals
@@ -746,6 +748,7 @@ def run(parameters, returns):
                 elif used_time_series[i] == 'vqpets':
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
+                    print(vqpe_obs)
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
                     for p in range(len(pauli_string)):
                         start = index+p*vqpe_obs
