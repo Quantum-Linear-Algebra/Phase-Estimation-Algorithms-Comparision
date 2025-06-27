@@ -96,31 +96,20 @@ def run(parameters, max_itr=-1):
     for x in xs:
         num = x[-1]
         if longest_x < num: longest_x = num
-
-    averages = {}
-    for i in range(len(parameters['algorithms'])):
-        algo = parameters['algorithms'][i]
-        color = colors[algo]
-        avg_est_E_0s = np.zeros(len(all_est_E_0s[i][0]), dtype=complex)
-        for j in range(len(all_est_E_0s[i])):
-            est_E_0s = all_est_E_0s[i][j]
-            avg_est_E_0s += est_E_0s
-        avg_est_E_0s /= len(all_est_E_0s[i])
-        averages[algo] = avg_est_E_0s
-
     
     plt.figure()
     for i in range(len(all_est_E_0s)):
         algo = parameters['algorithms'][i]
         color = colors[algo]
         x = xs[i]
+        avg_err = np.zeros(len(all_est_E_0s[i][0]))
         for j in range(len(all_est_E_0s[i])):
             est_E_0s = all_est_E_0s[i][j]
             err = [abs(w-real_E_0) for w in est_E_0s]
-            plt.plot(x, err, c = color, alpha = alpha)
-        avg_est_E_0s = averages[algo]
-        err = [abs(w-real_E_0) for w in avg_est_E_0s]
-        plt.plot(x, err, c = color, label = algo)
+            avg_err += err
+            plt.scatter(x, err, c = color, alpha = alpha)
+        avg_err /= len(all_est_E_0s[i])
+        plt.plot(x, avg_err, c = color, label = algo)
         
         
     plt.plot([0,longest_x], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
@@ -131,7 +120,7 @@ def run(parameters, max_itr=-1):
     else: plt.xlabel('Number of Observables')
     plt.legend()
     # plt.xlim([0,10])
-    # plt.ylim([0,10])
+    # plt.ylim([0,0.00001])
     plt.yscale('log')
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
     plt.show()
@@ -140,9 +129,12 @@ def run(parameters, max_itr=-1):
     for i in range(len(all_est_E_0s)):
         algo = parameters['algorithms'][i]
         color = colors[algo]
+        avg_E_0s = np.zeros(len(all_est_E_0s[i][0]))
         for j in range(len(all_est_E_0s[i])):
-            plt.plot(xs[i], all_est_E_0s[i][j], c = color, alpha = alpha)
-        plt.plot(xs[i], averages[algo], c = color, label = algo)
+            plt.scatter(xs[i], all_est_E_0s[i][j], c = color, alpha = alpha)
+            avg_E_0s += all_est_E_0s[i][j]
+        avg_E_0s /= len(all_est_E_0s[i])
+        plt.plot(xs[i], avg_E_0s, c = color, label = algo)
     eigs = np.linalg.eigvals(H)
     eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
     for i in range(len(eigs)):

@@ -22,23 +22,22 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     if show_steps: print('H=',H)
     S = toeplitz(exp_vals).T
     if show_steps: print('S=',S)
-    # eigenvalues are sorted with eigh
     d,V = eigh(S)
     d = d[::-1]
     V = V[:,::-1]
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
-    if show_steps: print('Singular Values',d)
+    if show_steps: print('Eigenvalues',d)
     d = d[:filter]
-    if show_steps: print('Filtered Singular Values',d)
+    if show_steps: print('Filtered Eigenvalues',d)
     Ht = V.conj().T@H@V
-    Ht = (Ht + Ht.conj().T)/2
+    # Ht = (Ht + Ht.conj().T)/2
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
     if show_steps: print('St=', St)
-    eig_vals,_ = eig(Ht,St)
+    eig_vals,_ = eigh(Ht,St)
     if show_steps: print('Eigenvalues:', eig_vals)
-    return eig_vals
+    return eig_vals 
 
 def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     '''
@@ -54,17 +53,18 @@ def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     Returns:
      - eig_vals: the estimated eigenvalues of the system
     '''
-    if len(exp_vals)<=2: row = exp_vals[:len(exp_vals)]
+    if len(exp_vals)==2: col = exp_vals[1]
     else: col = np.concatenate([[exp_vals[1]], [exp_vals[0]],np.conj(exp_vals[1:-2])])
     H = toeplitz(col, exp_vals[1:])
     if show_steps: print('H=',H)
     # toeplitz().T sets the input to the top row instead of the first column
     S = toeplitz(exp_vals[:-1]).T
     if show_steps: print('S=',S)
-    # eigenvalues are sorted with eigh
     d,V = eigh(S)
     d = d[::-1]
     V = V[:,::-1]
+    if show_steps: print('d=',d)
+    if show_steps: print('V=',V)
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
     if show_steps: print('S Eigenvalues',d)
@@ -84,7 +84,7 @@ def UVQPE_ground_energy(exp_vals, Dt,  svd_threshold, skipping=1, show_steps = F
     est_E_0s = []
     indexes = [i*skipping for i in range(int(len(exp_vals)/skipping))]
     for i in indexes:
-        if i < 2: est_E_0s.append(0);continue
+        if i == 0: est_E_0s.append(0);continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = UVQPE(exp_vals[:i+1], Dt, svd_threshold, show_steps=show_steps)
         est_E_0s.append(eig_vals[0])
@@ -94,7 +94,7 @@ def VQPE_ground_energy(exp_vals, Hexp_vals, num_pauli_string, svd_threshold, ski
     est_E_0s = []
     indices = [i*skipping for i in range(int(len(Hexp_vals)/skipping))]
     for i in indices:
-        if i < 2: est_E_0s.append(0); continue
+        if i == 0: est_E_0s.append(0); continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = VQPE(exp_vals[:i+1], Hexp_vals[:i+1], svd_threshold, show_steps=show_steps)
         est_E_0s.append(eig_vals[0])
