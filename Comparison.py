@@ -21,7 +21,7 @@ parameters['comp_type']   = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables'] = 100
 parameters['sites']       = 2
 parameters['Dt']          = .01
-parameters['shots']       = 10**3
+parameters['shots']       = 10**2
 parameters['scaling']     = 3/4*pi
 parameters['shifting']    = 0
 parameters['overlap']     = 1   # the initial state overlap
@@ -49,7 +49,7 @@ parameters['distance'] = .5
 # Algorithm Paramters
 parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # OPTIONS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
 parameters['const_obs']  = True
-parameters['reruns']     = 2
+parameters['reruns']     = 4
 
 # Algorithm Specific Parameters
 parameters['ODMD_svd_threshold']  = 10**-1
@@ -59,7 +59,7 @@ parameters['ML_QCELS_time_steps'] = 5
 parameters['ML_QCELS_calc_Dt']    = False
 
 # Fourier Filtering Parameters
-parameters['fourier_filtering'] = True
+parameters['fourier_filtering'] = False
 parameters['gamma_range']       = (1,3) # (min, max)
 parameters['filter_count']      = 6
 
