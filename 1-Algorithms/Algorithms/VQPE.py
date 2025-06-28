@@ -22,26 +22,22 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     if show_steps: print('H=',H)
     S = toeplitz(exp_vals).T
     if show_steps: print('S=',S)
-    # shot noise causes matrices to be not hermitian so use eig not eigh
-    d,V = eig(S)
-    idx = d.argsort()[::-1]
-    d = d[idx]
-    V = V[:,idx]
-    # d = d[::-1]
-    # V = V[:,::-1]
+    # eigh sorts eigenvalues
+    d,V = eigh(S)
+    d = d[::-1]
+    V = V[:,::-1]
     filter = sum(abs(d)>svd_threshold*abs(d[0]))
     V = V[:,:filter]
     if show_steps: print('Eigenvalues',d)
     d = d[:filter]
     if show_steps: print('Filtered Eigenvalues',d)
     Ht = V.conj().T@H@V
-    Ht = (Ht + Ht.conj().T)/2
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
     if show_steps: print('St=', St)
-    eig_vals,_ = eig(Ht,St)
+    eig_vals,_ = eigh(Ht,St)
     if show_steps: print('Eigenvalues:', eig_vals)
-    return eig_vals.real
+    return eig_vals
 
 def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     '''
@@ -64,11 +60,10 @@ def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     # toeplitz().T sets the input to the top row instead of the first column
     S = toeplitz(exp_vals[:-1]).T
     if show_steps: print('S=',S)
-    # shot noise causes matrices to be not hermitian so use eig not eigh
-    d,V = eig(S)
-    idx = d.argsort()[::-1]
-    d = d[idx]
-    V = V[:,idx]
+    # eigh sorts eigenvalues
+    d,V = eigh(S)
+    d = d[::-1]
+    V = V[:,::-1]
     if show_steps: print('d=',d)
     if show_steps: print('V=',V)
     filter = sum(abs(d)>svd_threshold*abs(d[0]))

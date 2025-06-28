@@ -749,6 +749,7 @@ def run(parameters, returns):
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
+                    print(Hexp_vals) # VQPE DOESNT CONVERGE!!! CHECK THESE WITH SIM/CLASSICAL
                     for p in range(len(pauli_string)):
                         start = index+p*vqpe_obs
                         pauli_string = pauli_strings.paulis[p]

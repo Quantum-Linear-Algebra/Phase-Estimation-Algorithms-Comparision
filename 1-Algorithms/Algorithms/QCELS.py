@@ -32,7 +32,7 @@ def QCELS(exp_vals, Dt, lambda_prior, skipping = 1):
     est_E_0s = []
     for i in range(time_steps//skipping):
         #------------------QCELS-----------------
-        time_step_idx = i*skipping
+        time_step_idx = i*skipping + 1
         est_E_0 = base_qcels_largeoverlap(exp_vals[:time_step_idx], lambda_prior, Dt)
         est_E_0s.append(est_E_0)
     return est_E_0s, [(i*skipping + 1)*2 for i in range(time_steps//skipping)]

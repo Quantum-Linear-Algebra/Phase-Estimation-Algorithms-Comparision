@@ -31,7 +31,7 @@ def run(parameters, skipping=1):
         E_0 = parameters['scaled_E_0']
         # lambda_prior = E_0
         order = np.floor(np.log10(np.abs(E_0)))
-        digits = 2
+        digits = 4
         lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
         print('Lambda Prior for QCELS based methods:', lambda_prior)
     for algo_name in parameters['algorithms']:
@@ -58,6 +58,7 @@ def run(parameters, skipping=1):
         print('Saved', algo_name+'\'s results into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
 
 def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0, Hexp_vals=[]):  
+    exp_vals[0] = 1 + 0j
     if algo_name == 'QCELS':
         assert(lambda_prior != 0)
         est_E_0s, observables = QCELS(exp_vals, parameters['Dt'], lambda_prior, skipping=skipping)
