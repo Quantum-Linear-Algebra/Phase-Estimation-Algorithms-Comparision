@@ -47,7 +47,7 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms'] = ['QCELS', 'UVQPE'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
 parameters['const_obs']  = True
 parameters['reruns']     = 3
 
