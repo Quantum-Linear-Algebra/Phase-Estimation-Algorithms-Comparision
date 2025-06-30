@@ -14,16 +14,27 @@ from Parameters import make_filename
 from Data_Manager import create_hamiltonian
 
 def run(parameters, max_itr=-1):
+    # setup relavant variables
     reruns = parameters['reruns']
+    fourier_filtering = parameters['fourier_filtering']
+    only_ML_QCLES = parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS'] 
+    if fourier_filtering:
+        filter_count = parameters['filter_count']
+        gammas = np.linspace(parameters['gamma_range'][0], parameters['gamma_range'][1], parameters['filter_count'])
     # get related data
     try: os.mkdir('2-Graphing/Graphs')
     except: pass
-    try:
-        filename = make_filename(parameters, add_shots=True)+'.pkl'
-        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+    if not only_ML_QCLES:
+        try:
+            filename = make_filename(parameters, add_shots=True)+'.pkl'
             with open('0-Data/Expectation_Values/linear_'+filename, 'rb') as file:
-                all_exp_vals = pickle.load(file)
-    except: print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
+                all_exp_vals = pickle.load(file) # reruns, exp_vals
+        except: print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
+        if parameters['fourier_filtering']:
+            filename = make_filename(parameters, fourier_filtered=True, add_shots=True)+'.pkl'
+            with open('0-Data/Expectation_Values/Denoised/linear_'+filename, 'rb') as file:
+                all_ff_exp_vals = pickle.load(file) # reruns, filters, exp_vals
+
     all_est_E_0s = []
     all_observables = []
     for algo in parameters['algorithms']:    
@@ -40,6 +51,27 @@ def run(parameters, max_itr=-1):
     vecs = [vecs[:,i] for i in range(len(vecs))]
     sv = parameters['sv']
 
+    # check lengths of data
+    if only_ML_QCLES:
+        if reruns > len(all_exp_vals):
+            print('Number of linear time series is too small. Reducing reruns.')
+            reruns=len(all_exp_vals)
+    if fourier_filtering:
+        if reruns > len(all_ff_exp_vals):
+            print('Number of fourier filtered time series is too small. Reducing reruns.')
+            reruns=len(all_ff_exp_vals)
+        for ff_exp_vals in all_ff_exp_vals:
+            if filter_count > len(ff_exp_vals):
+                print('Less filters than expected. Reducing filter count.')
+                filter_count = len(ff_exp_vals)
+    for i in range(len(parameters['algorithms'])):
+        if reruns > all_est_E_0s[i]:
+            print('Number of ground state estimations is too small for '+parameters['algorithms'][i]+'. Reducing reruns.')
+            reruns=len(all_est_E_0s[i])
+        if reruns > all_est_E_0s[i]:
+            print('Number of observables is too small for '+parameters['algorithms'][i]+'. Reducing reruns.')
+            reruns=len(all_est_E_0s[i])
+
     # create related graphs
     plt.figure()
     plt.title('Overlap')
@@ -50,16 +82,16 @@ def run(parameters, max_itr=-1):
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
     plt.show()
 
-    alpha = 1/len(all_est_E_0s[0])
-    if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+    alpha = 1/reruns
+    if not only_ML_QCLES:
         plt.figure()
         avg_exp_vals = np.zeros(len(all_exp_vals[0]), dtype=complex)
-        for i in range(len(all_exp_vals)):
+        for i in range(reruns):
             exp_vals = all_exp_vals[i]
             avg_exp_vals += exp_vals
             plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in exp_vals], alpha = alpha, c = 'orange')
             plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in exp_vals], alpha = alpha, c = 'blue')
-        avg_exp_vals /= len(all_exp_vals)
+        avg_exp_vals /= reruns
         plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in avg_exp_vals], c = 'orange', label = 'Real')
         plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in avg_exp_vals], c = 'blue', label = 'Imaginary')
         plt.legend()
@@ -68,102 +100,142 @@ def run(parameters, max_itr=-1):
         plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
         plt.show()
+        
 
         plt.figure()
-        for i in range(len(all_exp_vals)):
+        for i in range(reruns):
             exp_vals = all_exp_vals[i]
             plt.plot(fftshift(fftfreq(len(exp_vals), d=parameters['Dt'])), abs(fftshift(fft(exp_vals))), c = 'purple', alpha = alpha)
         plt.plot(fftshift(fftfreq(len(avg_exp_vals), d=parameters['Dt'])), abs(fftshift(fft(avg_exp_vals))), c = 'purple', label = 'FFT')
-        
         plt.legend()
         plt.xlabel('Frequency')
         plt.ylabel('Amplitude')
         plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
         plt.show()
-    colors = {'QCELS':'red', 'ODMD':'blue', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen'}
 
-    use_shots = False
-    xs = []
-    for i in range(len(all_est_E_0s)):
-        observables = all_observables[i][0]
-        if use_shots: total_shots = [w*parameters['shots'] for w in observables]
-        if use_shots: x=total_shots 
-        else: x=observables
-        xs.append(x)
+        if fourier_filtering:
+            plt.figure()
+            ax = plt.axes(projection='3d') 
+            for i in range(reruns):
+                for j in range(filter_count):
+                    exp_vals = all_ff_exp_vals[i][j]
+                    plt.plot(gammas[j], [i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in exp_vals], alpha = alpha, c = 'orange')
+                    plt.plot(gammas[j], [i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in exp_vals], alpha = alpha, c = 'blue')
+            plt.ylabel('Time')
+            ax.set_zlabel('Expectation Value')
+            plt.xlabel('gamma')
+            plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
+            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, fourier_filtered=True, add_shots=True)+'_Expectation_Value.png')
+            plt.show()
+            
+            plt.figure()
+            ax = plt.axes(projection='3d') 
+            for i in range(reruns):
+                for j in range(filter_count):
+                    exp_vals = all_ff_exp_vals[i][j]
+                    plt.plot(gammas[j], fftshift(fftfreq(len(exp_vals), d=parameters['Dt'])), abs(fftshift(fft(exp_vals))))
+            plt.ylabel('Frequency')
+            ax.set_zlabel('Amplitude')
+            plt.xlabel('gamma')
+            plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' and overlap='+str(parameters['overlap']))
+            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, fourier_filtered=True, add_shots =True)+'_Fourier_Transform_Expectation_Value.png')
+            plt.show()
     
-    longest_x = 0
-    for x in xs:
-        num = x[-1]
-        if longest_x < num: longest_x = num
-    
-    plt.figure()
-    for i in range(len(all_est_E_0s)):
-        algo = parameters['algorithms'][i]
-        color = colors[algo]
-        x = xs[i]
-        avg_err = np.zeros(len(all_est_E_0s[i][0]))
-        for j in range(len(all_est_E_0s[i])):
-            est_E_0s = all_est_E_0s[i][j]
-            err = [abs(w-real_E_0) for w in est_E_0s]
-            avg_err += err
-            plt.scatter(x, err, c = color, alpha = alpha)
-        avg_err /= len(all_est_E_0s[i])
-        plt.plot(x, avg_err, c = color, label = algo)
-        
-        
-    plt.plot([0,longest_x], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
-    if max_itr != -1: plt.xlim([0, max_itr])
-    plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
-    plt.ylabel('Absolute Error')
-    if use_shots: plt.xlabel('Total Shots')
-    else: plt.xlabel('Number of Observables')
-    plt.legend()
-    # plt.xlim([0,10])
-    # plt.ylim([0,0.00001])
-    plt.yscale('log')
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
-    plt.show()
+    if parameters['algorithms']: # if theres at least one algorithm
+        colors = {'QCELS':'red', 'ODMD':'blue', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen'}
 
-    plt.figure()
-    for i in range(len(all_est_E_0s)):
-        algo = parameters['algorithms'][i]
-        color = colors[algo]
-        avg_E_0s = np.zeros(len(all_est_E_0s[i][0]))
-        for j in range(len(all_est_E_0s[i])):
-            plt.scatter(xs[i], all_est_E_0s[i][j], c = color, alpha = alpha)
-            avg_E_0s += all_est_E_0s[i][j]
-        avg_E_0s /= len(all_est_E_0s[i])
-        plt.plot(xs[i], avg_E_0s, c = color, label = algo)
-    eigs = np.linalg.eigvals(H)
-    eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
-    for i in range(len(eigs)):
-        plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label = 'E'+str(i))
-    if max_itr != -1: plt.xlim([0, max_itr])
-    if use_shots: plt.xlabel('Total Shots')
-    else: plt.xlabel('Number of Observables')
-    plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
-    dis = (eigs[2]-eigs[0])/2
-    # plt.ylim(eigs[0]-dis, eigs[2]+dis)
-    plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
-    plt.ylabel('Eigenvalue')
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png', bbox_inches='tight')
-    plt.show()
+        use_shots = False
+        xs = []
+        for i in range(len(all_est_E_0s)):
+            observables = all_observables[i][0]
+            if use_shots: total_shots = [w*parameters['shots'] for w in observables]
+            if use_shots: x=total_shots 
+            else: x=observables
+            xs.append(x)
+        
+        longest_x = 0
+        for x in xs:
+            num = x[-1]
+            if longest_x < num: longest_x = num
+        
+        plt.figure()
+        for i in range(len(all_est_E_0s)):
+            algo = parameters['algorithms'][i]
+            color = colors[algo]
+            x = xs[i]
+            avg_err = np.zeros(len(all_est_E_0s[i][0]))
+            for j in range(len(all_est_E_0s[i])):
+                est_E_0s = all_est_E_0s[i][j]
+                err = [abs(w-real_E_0) for w in est_E_0s]
+                avg_err += err
+                plt.scatter(x, err, c = color, alpha = alpha)
+            avg_err /= len(all_est_E_0s[i])
+            plt.plot(x, avg_err, c = color, label = algo)
+            
+            
+        plt.plot([0,longest_x], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
+        if max_itr != -1: plt.xlim([0, max_itr])
+        plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
+        plt.ylabel('Absolute Error')
+        if use_shots: plt.xlabel('Total Shots')
+        else: plt.xlabel('Number of Observables')
+        plt.legend()
+        # plt.xlim([0,10])
+        # plt.ylim([0,0.00001])
+        plt.yscale('log')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
+        plt.show()
+
+        plt.figure()
+        for i in range(len(all_est_E_0s)):
+            algo = parameters['algorithms'][i]
+            color = colors[algo]
+            avg_E_0s = np.zeros(len(all_est_E_0s[i][0]))
+            for j in range(len(all_est_E_0s[i])):
+                plt.scatter(xs[i], all_est_E_0s[i][j], c = color, alpha = alpha)
+                avg_E_0s += all_est_E_0s[i][j]
+            avg_E_0s /= len(all_est_E_0s[i])
+            plt.plot(xs[i], avg_E_0s, c = color, label = algo)
+        eigs = np.linalg.eigvals(H)
+        eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
+        for i in range(len(eigs)):
+            plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label = 'E'+str(i))
+        if max_itr != -1: plt.xlim([0, max_itr])
+        if use_shots: plt.xlabel('Total Shots')
+        else: plt.xlabel('Number of Observables')
+        plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
+        # dis = (eigs[2]-eigs[0])/2
+        # plt.ylim(eigs[0]-dis, eigs[2]+dis)
+        plt.title('Convergence in Energy for '+parameters['system']+' with overlap='+str(parameters['overlap']))
+        plt.ylabel('Eigenvalue')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png', bbox_inches='tight')
+        plt.show()
+    
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
+    exit_code = os.system('rm -rf Recent_Graphs')
+    assert(exit_code == 0)
     print('Attempting to copy newly generated graphs.')
     try: os.mkdir('Recent_Graphs')
     except: pass
     try:
         filename = make_filename(parameters, add_shots=True)
-        graph_types = ['Spectrum', 'Abs_Error', 'Convergence']
+        graph_types = ['Spectrum']
+        if parameters['algorithms']:
+            graph_types.append('Abs_Error')
+            graph_types.append('Convergence')
         if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
             graph_types.append('Expectation_Value')
             graph_types.append('Fourier_Transform_Expectation_Value')
         for graph_type in graph_types:
             exit_code = os.system('cp 2-Graphing/Graphs/'+filename+'_'+graph_type+'.png Recent_Graphs/'+graph_type+'.png')
             assert(exit_code==0)
+            if parameters['fourier_filtering'] and graph_type[-17:] == 'Expectation_Value':
+                fn = make_filename(parameters, fourier_filtered=True, add_shots=True)
+                exit_code = os.system('cp 2-Graphing/Graphs/'+fn+'_'+graph_type+'.png Recent_Graphs/Fourier_Filtered_'+graph_type+'.png')
+                assert(exit_code==0)      
         print('Successfully copied newly generated graphs. (', end ='')
         for graph_type in graph_types[:len(graph_types)-1]:
             print('Recent_Graphs/'+graph_type+'.png, ', end='') 

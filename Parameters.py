@@ -152,10 +152,13 @@ def check(parameters):
 
 
 # define a system for naming files
-def make_filename(parameters, add_shots = False):
+def make_filename(parameters, fourier_filtered=False, add_shots = False):
     system = parameters['system']
     string = 'comp='+parameters['comp_type']+'_sys='+system
     string+='_n='+str(parameters['sites'])
+    if fourier_filtered:
+        string+='_gamma='+str(parameters['gamma_range'][0])+','+str(parameters['gamma_range'][1])
+        string+='_filters='+str(parameters['filter_count'])
     if system=='TFI':
         if parameters['comp_type'] != 'C':
             method_for_model = parameters['method_for_model']
