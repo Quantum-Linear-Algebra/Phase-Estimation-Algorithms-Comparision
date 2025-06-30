@@ -761,10 +761,18 @@ def run(parameters, returns):
                 elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
                     all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots))
                 else: all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables], shots))
-    
+
+    # save expectation values
+    try: os.mkdir('0-Data/Expectation_Values')
+    except: pass
+    for key in all_exp_vals.keys():
+        filename = '0-Data/Expectation_Values/'+key+'_'+make_filename(parameters, add_shots=True)+'.pkl'
+        with open(filename, 'wb') as file:
+            pickle.dump(all_exp_vals[key], file)
+        print('Saved expectation values into file.', '('+filename+')')  
     # fourier filtering
     if parameters['fourier_filtering']:
-        print('Denoising expectation values.')
+        print('\nDenoising expectation values.')
         gamma_range = parameters['gamma_range']
         filter_count = parameters['filter_count']
         gammas = np.linspace(gamma_range[0], gamma_range[1], filter_count)
@@ -782,24 +790,13 @@ def run(parameters, returns):
                         new_exp_vals = ifft([i*(i>gamma*fft_median) for i in fft_exp_vals])
                         filtered_exp_vals.append(new_exp_vals)
                     fourier_all_exp_vals[key].append(filtered_exp_vals)
-        try: os.mkdir('0-Data/Expectation_Values')
-        except: pass
         try: os.mkdir('0-Data/Expectation_Values/Denoised')
         except: pass
         for key in fourier_all_exp_vals:
-            filename = '0-Data/Expectation_Values/Denoised/'+key+make_filename(parameters, fourier_filtered=True, add_shots=True)+'.pkl'
+            filename = '0-Data/Expectation_Values/Denoised/'+key+'_'+make_filename(parameters, fourier_filtered=True, add_shots=True)+'.pkl'
             with open(filename, 'wb') as file:
                 pickle.dump(fourier_all_exp_vals[key], file)
-            print('Saved expectation values into file.', '('+filename+')')
-
-    # save expectation values
-    try: os.mkdir('0-Data/Expectation_Values')
-    except: pass
-    for key in all_exp_vals.keys():
-        filename = '0-Data/Expectation_Values/'+key+'_'+make_filename(parameters, add_shots=True)+'.pkl'
-        with open(filename, 'wb') as file:
-            pickle.dump(all_exp_vals[key], file)
-        print('Saved expectation values into file.', '('+filename+')')  
+            print('Saved fourier filtered expectation values into file.', '('+filename+')')
     
 
 def calc_all_exp_vals(results, shots):
