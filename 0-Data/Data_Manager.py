@@ -328,7 +328,7 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string=''):
     '''
     statevector = parameters['sv']
     VQPE = pauli_string!=''
-    use_F3C = parameters['method_for_model']=="F" and not VQPE
+    use_F3C = not VQPE and parameters['system'] == 'TFI' and parameters['method_for_model']=="F"
     
     num_timesteps = int(parameters['observables']/2)
     if parameters['const_obs'] and (VQPE or parameters['algorithms'] == ['VQPE']): num_timesteps = int(num_timesteps/(len(parameters['pauli_strings'])+1))
@@ -747,16 +747,16 @@ def run(parameters, returns):
                         exp_vals[time_steps[j]] = list_exp_vals[j]
                     all_exp_vals['sparse'].append(exp_vals)
                 elif used_time_series[i] == 'vqpets':
+                    pauli_strings = parameters['pauli_strings']
                     if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                     else: vqpe_obs = observables
                     Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
-                    print(Hexp_vals) # VQPE DOESNT CONVERGE!!! CHECK THESE WITH SIM/CLASSICAL
-                    for p in range(len(pauli_string)):
+                    for p in range(len(pauli_strings)):
                         start = index+p*vqpe_obs
                         pauli_string = pauli_strings.paulis[p]
                         coeff = pauli_strings.coeffs[p]
                         exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
-                        Hexp_vals += [i*coeff for i in exp_vals]
+                        Hexp_vals += [k*coeff for k in exp_vals]
                     all_exp_vals['vqpets'].append(Hexp_vals)
                 elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
                     all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots))
