@@ -9,24 +9,39 @@ def print_matrix(mat):
             else: print(i[j], end="")
         print(" |")
 
-def make_hankel(k, ref, s_k):
+def make_hankel(s_ks):
     '''
     Create the hankel matrices
 
     Parameters:
-     - k: the amount of data to use
-     - ref: the number of reference states (usually 1)
-     - s_k: the quantum data
+     - s_ks: the quantum data sets
 
     Returns:
      - X: the hankel matrix
     '''
-    m = k//2
-    X = np.zeros((ref*m, k+1-m), dtype=complex)
-    for i in range(len(X)):
-        for j in range(len(X[i])):
-            X[i][j] = s_k[i+j]
+    
+def make_hankel(s_ks):
+    '''
+    Create the hankel matrices
+
+    Parameters:
+     - s_ks: the quantum data sets
+
+    Returns:
+     - X: the hankel matrix
+    '''
+    rows, cols = s_ks.shape
+    m = cols//2
+    X = np.zeros((rows*m, cols+1-m), dtype=complex)
+    # for i in range(len(X)):
+    #     for j in range(len(X[i])):
+    #         X[i][j] = s_k[0][i+j]
+    for i in range(cols+1-m):
+        # print(s_ks[:,0])
+        temp = s_ks[:,i:i+m].T
+        X[:,i] = temp.ravel()
     return X
+
 
 def check_convergence(data, precision):
     '''
@@ -46,7 +61,7 @@ def check_convergence(data, precision):
         if data[-i]/precision-data[-i-1]/precision > precision: return False
     return True
 
-def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, show_steps = False, skipping = 1):
+def ODMD(s_ks, Dt, svd_threshold, max_iterations, precision = 0, full_observable=True, filter_count=0, show_steps = False, skipping = 1):
     '''
     Preform the ODMD calculation.
 
@@ -66,15 +81,18 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, show_steps = Fal
     Returns:
      - E_0: the minimum ground energy estimate
     '''
-    if show_steps: print("s_k:", s_k)
+    s_ks = np.array(s_ks)
+    for i in range(len(s_ks)):
+        if not full_observable: s_ks[i] = [j.real for j in s_ks[i]]
+        if show_steps: print("s_k:", s_ks[i])
     k = -skipping
     est_E_0s = []
     while (True):
         k += skipping
         if k>=max_iterations: break
         if show_steps: print("k =", k+1)
-        if k < 3: est_E_0s.append(0); continue # svd breaks if k<3
-        temp = make_hankel(k, 1, s_k)
+        if k < 1: est_E_0s.append(0); continue # prevent svd from breaking
+        temp = make_hankel(s_ks[:,:k+1])
         X = temp[:,:-1]
         Xprime = temp[:,1:]
         if show_steps: print("X"); print_matrix(X)
@@ -98,6 +116,8 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, show_steps = Fal
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)
         if precision!=0 and check_convergence(est_E_0s, precision): break
-    return est_E_0s, [(i*skipping + 1)*2 for i in range(len(s_k)//skipping)]
+        obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping)]
+        if full_observable: obs = [i*2 for i in obs]
+    return est_E_0s, obs
 
 
