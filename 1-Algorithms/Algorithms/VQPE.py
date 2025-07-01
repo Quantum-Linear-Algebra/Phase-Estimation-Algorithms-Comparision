@@ -32,6 +32,7 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     d = d[:filter]
     if show_steps: print('Filtered Eigenvalues',d)
     Ht = V.conj().T@H@V
+    Ht = (Ht + Ht.conj().T)/2
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
     if show_steps: print('St=', St)
