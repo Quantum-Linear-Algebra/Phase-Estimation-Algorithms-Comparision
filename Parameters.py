@@ -1,7 +1,7 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from scipy.linalg import eigh
-from numpy import ceil, sqrt
+from numpy import ceil, sqrt, zeros
 from Service import create_hardware_backend
 from sys import exit
 import pickle
@@ -17,8 +17,8 @@ def check(parameters):
     # parameter checking (if there's an error change parameters in question)
     assert(parameters['comp_type'] == 'C' or parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J')
     assert(parameters['system'] == 'TFI' or parameters['system'] == 'SPI' or parameters['system'] == 'HUB' or parameters['system'] == 'H_2')
-    if 'overlap' not in parameters: parameters['overlap'] = 1
-    assert(0<=parameters['overlap']<=1)
+    if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
+    if 'distribution' in parameters: assert(sum(parameters['distribution'])==1)
     for algo in parameters['algorithms']:
         assert(algo in ['VQPE','UVQPE','ODMD','QCELS','ML_QCELS'])
 
@@ -82,7 +82,16 @@ def check(parameters):
         H,real_E_0 =create_hamiltonian(parameters)
         parameters['real_E_0'] = real_E_0
         energy,eig_vec = eigh(H)
-        parameters['sv'] = make_overlap(eig_vec[:,0], parameters['overlap'])
+        if 'overlap' in parameters:
+            parameters['sv'] = make_overlap(eig_vec[:,0], parameters['overlap'])
+        elif 'distribution' in parameters:
+            parameters['sv'] = zeros(len(eig_vec[:,0]), dtype=complex)
+            for i in range(len(parameters['distribution'])):
+                print(i, parameters['distribution'])
+                parameters['sv'] += sqrt(parameters['distribution'][i])*eig_vec[:,i]
+                print(parameters['sv']@eig_vec[:,i])
+            # assert(parameters['sv']@eig_vec[:,0]==parameters['distribution'][0]) 
+        else: parameters['sv'] = eig_vec[:,0]
         parameters['scaled_E_0'] = energy[0]
         
         if 'const_obs' not in parameters: parameters['const_obs'] = False
@@ -117,6 +126,8 @@ def check(parameters):
         if 'ODMD' in parameters['algorithms']:
             used_variables.append('ODMD_svd_threshold')
             if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
+            used_variables.append('ODMD_full_observable')
+            if 'ODMD_full_observable' not in parameters: parameters['ODMD_full_observable'] = False
         if 'UVQPE' in parameters['algorithms']:
             used_variables.append('UVQPE_svd_threshold')
             if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
@@ -182,7 +193,8 @@ def make_filename(parameters, fourier_filtered=False, add_shots = False):
         string+='_dist='+str(parameters['distance'])
     string+='_scale='+str(parameters['scaling'])
     string+='_shift='+str(parameters['shifting'])
-    string+='_overlap='+str(parameters['overlap'])
+    if 'overlap' in parameters: string+='_overlap='+str(parameters['overlap'])
+    if 'distribution' in parameters: string+='_distr='+str(parameters['distribution'])
     string+='_Dt='+str(parameters['Dt'])
     if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
         string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
