@@ -17,14 +17,14 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']    = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables']  = 100
 parameters['sites']        = 2
 parameters['Dt']           = 0.75
 parameters['shots']        = 10**1
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
-parameters['overlap']      = .2   # the initial state overlap
+parameters['overlap']      = 1   # the initial state overlap
 # parameters['distribution'] = [.5,0,0,.5]
 
 # SPECIFIC SYSTEM TYPE
@@ -48,7 +48,7 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms'] = ['UVQPE', 'ODMD'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
 parameters['const_obs']  = True
 parameters['reruns']     = 1
 
