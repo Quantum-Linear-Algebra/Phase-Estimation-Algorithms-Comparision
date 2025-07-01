@@ -20,21 +20,21 @@ def create_hardware_backend():
     filename = "Service.pkl" 
     if empty(filename):
         token    = input("Enter API Token:")
-        channel  = input("Enter Channel:")
         instance = input("Enter Instance:")
         hardware_name = input("Enter Hardware Backend Name:")
         with open(filename, 'wb') as file:
-            pickle.dump([token, channel, instance, hardware_name], file)
+            pickle.dump([token, instance, hardware_name], file)
     else:
         with open(filename, 'rb') as file:
-            [token, channel, instance, hardware_name] = pickle.load(file)
+            [token, instance, hardware_name] = pickle.load(file)
     try:
         print("Creating backend.")
-        service = QRS(channel=channel, instance=instance, token=token)
+        service = QRS(channel='ibm_cloud', instance=instance, token=token)
         backend = service.backend(hardware_name)
         print("Backend created.")
         return backend
-    except:
+    except Exception as e:
+        print(e)
         print("One or more of the provided service parameters are incorrect. Try rechecking your IBM Quantum Platform.")
         if not empty(filename): remove(filename)
         exit(1)
@@ -50,20 +50,23 @@ def create_service():
     filename = "Service.pkl" 
     if empty(filename):
         token    = input("Enter API Token:")
-        channel  = input("Enter Channel:")
         instance = input("Enter Instance:")
         hardware_name = input("Enter Hardware Backend Name:")
         with open(filename, 'wb') as file:
-            pickle.dump([token, channel, instance, hardware_name], file)
+            pickle.dump([token, instance, hardware_name], file)
     else:
         with open(filename, 'rb') as file:
-            [token, channel, instance, hardware_name] = pickle.load(file)
+            [token, instance, hardware_name] = pickle.load(file)
     try:
         print("Creating Service.")
-        service = QRS(channel=channel, instance=instance, token=token)
+        service = QRS(channel='ibm_cloud', instance=instance, token=token)
         print("Service saved.")
         return service
-    except:
+    except Exception as e:
+        print(e)
         print("One or more of the provided service parameters are incorrect. Try rechecking your IBM Quantum Platform.")
         if not empty(filename): remove(filename)
         exit()
+
+if __name__ == '__main__':
+    create_service()
