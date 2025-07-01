@@ -673,7 +673,7 @@ def run(parameters, returns):
                 jobs = []
                 job_correct_size = True
                 for job_tqcs in jobs_tqcs:
-                    print(len(job_tqcs)*parameters['shots'])
+                    print('Total shots in job:', len(job_tqcs)*parameters['shots'])
                     if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
                         job_correct_size = False
                 if job_correct_size:

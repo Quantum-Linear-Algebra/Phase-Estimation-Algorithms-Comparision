@@ -32,13 +32,12 @@ def VQPE(exp_vals, Hexp_vals, svd_threshold, show_steps = False):
     d = d[:filter]
     if show_steps: print('Filtered Eigenvalues',d)
     Ht = V.conj().T@H@V
-    Ht = (Ht + Ht.conj().T)/2
     if show_steps: print('Ht=', Ht)
     St = np.diag(d)
     if show_steps: print('St=', St)
-    eig_vals,_ = eigh(Ht,St)
+    eig_vals,_ = eig(Ht,St) # use eig instead of eigh because of hardware noise
     if show_steps: print('Eigenvalues:', eig_vals)
-    return eig_vals
+    return eig_vals.real
 
 def UVQPE(exp_vals, Dt, svd_threshold, show_steps = False):
     '''
