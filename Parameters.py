@@ -30,8 +30,13 @@ def check(parameters):
         print('Loading parameter data.')
         algos = parameters['algorithms']
         with open('0-Data/Jobs/'+str(batch_id)+'.pkl', 'rb') as file:
-            [parameters, job_ids] = pickle.load(file)
+            [params, job_ids] = pickle.load(file)
+        for key in list(parameters.keys()):
+            parameters.pop(key)
+        for key in params:
+            parameters[key] = params[key]
         parameters['algorithms'] = algos
+        parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
         used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv']
