@@ -5,10 +5,9 @@ sys.path.append('.')
 from Service import empty, create_service
 from Parameters import make_filename
 sys.path.append('./1-Algorithms/Algorithms')
-from ML_QCELS import closest_unitary
 
 import subprocess, os, numpy as np
-from scipy.linalg import expm, eigh
+from scipy.linalg import expm, eigh, svd
 from scipy.fft import fft, ifft
 
 from qiskit import transpile
@@ -26,6 +25,20 @@ from qiskit_nature.second_q.mappers import ParityMapper
 # Prevent annoying migration warnings
 import warnings 
 warnings.simplefilter("ignore")
+
+def closest_unitary(A):
+    """ 
+    Description: Calculate the unitary matrix U that is closest with respect to the
+    operator norm distance to the general matrix A. Used when qiskit fails to transpile
+    unitary gate due to float point rounding.
+
+    Args: Unitary matrix which qiskit fails to diagonalize: A
+
+    Return: Unitary as an np matrix
+    """
+    V, __, Wh = svd(A)
+    U = np.matrix(V.dot(Wh))
+    return U
 
 def create_hamiltonian(parameters, scale=True, show_steps=False):
     '''
@@ -383,7 +396,7 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string=''):
                 if VQPE:
                     pauli = Pauli(pauli_string).to_matrix()
                     mat = pauli@mat
-                controlled_U = UnitaryGate(mat).control(annotated="yes")
+                controlled_U = UnitaryGate(closest_unitary(mat)).control(annotated="yes")
                 gates.append(controlled_U)
     return gates, statevector
 

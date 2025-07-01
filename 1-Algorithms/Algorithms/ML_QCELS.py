@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.linalg import svd
 from scipy.optimize import minimize
 
 def arrange_Z_ests(old_Z_ests, ts, sparse):
@@ -18,20 +17,6 @@ def arrange_Z_ests(old_Z_ests, ts, sparse):
 
 def dt_to_index(smallest_dt, max_t):
     return max_t/smallest_dt
-
-def closest_unitary(A):
-    """ 
-    Description: Calculate the unitary matrix U that is closest with respect to the
-    operator norm distance to the general matrix A. Used when qiskit fails to transpile
-    unitary gate due to float point rounding.
-
-    Args: Unitary matrix which qiskit fails to diagonalize: A
-
-    Return: Unitary as an np matrix
-    """
-    V, __, Wh = svd(A)
-    U = np.matrix(V.dot(Wh))
-    return U
 
 def qcels_opt_fun(x, ts, Z_est):
     NT = ts.shape[0]
