@@ -18,14 +18,14 @@ parameters = {}
 
 # Generic Parameters
 parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables']  = 100
+parameters['observables']  = 1000
 parameters['sites']        = 2
 parameters['Dt']           = 0.75
-parameters['shots']        = 10**1
+parameters['shots']        = 10**0
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
-parameters['overlap']      = 1   # the initial state overlap
-# parameters['distribution'] = [.5,0,0,.5]
+# parameters['overlap']      = .5   # the initial state overlap
+parameters['distribution'] = [.3]+[(1-.3)/3]*3
 
 # SPECIFIC SYSTEM TYPE
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
@@ -48,23 +48,20 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms'] = ['ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
-parameters['const_obs']  = True
+parameters['algorithms'] = ['ODMD', 'QCELS'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['const_obs']  = False
 parameters['reruns']     = 1
 
 # Algorithm Specific Parameters
-parameters['ODMD_svd_threshold']   = 10**-1
+parameters['ODMD_svd_threshold']   = 9*10**-1
 parameters['ODMD_full_observable'] = True
+parameters['ODMD_fourier_filter']  = True
+parameters['ODMD_gamma_range']     = (1,3) # (min, max)
+parameters['ODMD_filter_count']    = 6
 parameters['VQPE_svd_threshold']   = 10**-1
 parameters['UVQPE_svd_threshold']  = 9*10**-1
 parameters['ML_QCELS_time_steps']  = 5
 parameters['ML_QCELS_calc_Dt']     = False
-
-# Fourier Filtering Parameters
-parameters['fourier_filtering'] = False
-parameters['gamma_range']       = (0,10) # (min, max)
-parameters['filter_count']      = 10
-
 
 if __name__ == "__main__":
     returns = param.check(parameters)

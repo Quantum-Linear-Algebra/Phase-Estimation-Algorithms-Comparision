@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import svd
+from scipy.fft import fft, ifft
 
 def print_matrix(mat):
     for i in mat:
@@ -61,7 +62,19 @@ def check_convergence(data, precision):
         if data[-i]/precision-data[-i-1]/precision > precision: return False
     return True
 
-def ODMD(s_ks, Dt, svd_threshold, max_iterations, precision = 0, full_observable=True, filter_count=0, show_steps = False, skipping = 1):
+def fourier_filter_exp_vals(exp_vals, gamma_range, filters):
+    gammas = np.linspace(gamma_range[0], gamma_range[1], filters)
+    filtered_exp_vals = []
+    fft_exp_vals = fft(exp_vals)
+    fft_median = np.median(np.abs(fft_exp_vals))
+    # print(fft_median)
+    for gamma in gammas:
+        # true is counted as 1, false is counted as 0
+        new_exp_vals = ifft([i*(abs(i)>gamma*fft_median) for i in fft_exp_vals]) 
+        filtered_exp_vals.append(new_exp_vals)
+    return filtered_exp_vals
+
+def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=True, fourier_filter=True, fourier_params={}, show_steps = False, skipping = 1):
     '''
     Preform the ODMD calculation.
 
@@ -81,10 +94,14 @@ def ODMD(s_ks, Dt, svd_threshold, max_iterations, precision = 0, full_observable
     Returns:
      - E_0: the minimum ground energy estimate
     '''
-    s_ks = np.array(s_ks)
-    for i in range(len(s_ks)):
-        if not full_observable: s_ks[i] = [j.real for j in s_ks[i]]
-        if show_steps: print("s_k:", s_ks[i])
+
+    if not full_observable:
+        s_k = [i.real for i in s_k]
+    if not fourier_filter:
+        s_ks = np.array([s_k])
+    else:
+        s_ks = np.array(fourier_filter_exp_vals(s_k, fourier_params['gamma_range'], fourier_params['filters']))
+    # print(np.linalg.norm(s_k-s_ks[0]))
     k = -skipping
     est_E_0s = []
     while (True):

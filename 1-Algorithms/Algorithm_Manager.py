@@ -63,8 +63,17 @@ def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0,
         assert(lambda_prior != 0)
         est_E_0s, observables = QCELS(exp_vals, parameters['Dt'], lambda_prior, skipping=skipping)
     elif algo_name == 'ODMD':
-        s_ks = [exp_vals]
-        est_E_0s, observables = ODMD(s_ks, parameters['Dt'], parameters['ODMD_svd_threshold'], len(exp_vals), skipping=skipping)
+        Dt = parameters['Dt']
+        threshold = parameters['ODMD_svd_threshold']
+        full_observable = parameters['ODMD_full_observable']
+        fourier_filter  = parameters['ODMD_fourier_filter']
+        fourier_params = {}
+        if fourier_filter:
+            gamma_range = parameters['ODMD_gamma_range']
+            fourier_params['gamma_range'] = gamma_range
+            filters = parameters['ODMD_filter_count']
+            fourier_params['filters'] = filters
+        est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=fourier_filter, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
         est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps = False)
     elif algo_name == 'ML_QCELS':

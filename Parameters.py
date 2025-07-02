@@ -18,7 +18,7 @@ def check(parameters):
     assert(parameters['comp_type'] == 'C' or parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J')
     assert(parameters['system'] == 'TFI' or parameters['system'] == 'SPI' or parameters['system'] == 'HUB' or parameters['system'] == 'H_2')
     if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
-    if 'distribution' in parameters: assert(sum(parameters['distribution'])==1)
+    if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1)
     for algo in parameters['algorithms']:
         assert(algo in ['VQPE','UVQPE','ODMD','QCELS','ML_QCELS'])
 
@@ -39,7 +39,7 @@ def check(parameters):
         parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'overlap', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv']
+        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv']
         if parameters['comp_type'] != 'C':
             used_variables.append('shots')
             if 'shots' not in parameters: parameters['shots'] = 100
@@ -83,8 +83,10 @@ def check(parameters):
         parameters['real_E_0'] = real_E_0
         energy,eig_vec = eigh(H)
         if 'overlap' in parameters:
+            used_variables.append('overlap')
             parameters['sv'] = make_overlap(eig_vec[:,0], parameters['overlap'])
         elif 'distribution' in parameters:
+            used_variables.append('distribution')
             parameters['sv'] = zeros(len(eig_vec[:,0]), dtype=complex)
             for i in range(len(parameters['distribution'])):
                 print(i, parameters['distribution'])
@@ -128,25 +130,22 @@ def check(parameters):
             if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
             used_variables.append('ODMD_full_observable')
             if 'ODMD_full_observable' not in parameters: parameters['ODMD_full_observable'] = False
+            used_variables.append('ODMD_fourier_filter')
+            if 'ODMD_fourier_filter' not in parameters:
+                parameters['ODMD_fourier_filter'] = False
+            elif parameters['ODMD_fourier_filter'] == True:
+                used_variables.append('ODMD_gamma_range')
+                if 'ODMD_gamma_range' not in parameters:
+                    parameters['ODMD_gamma_range'] = (1,3)
+                else:
+                    assert(parameters['ODMD_gamma_range'][0]>=0 and parameters['ODMD_gamma_range'][1]>=0)
+                    assert(parameters['ODMD_gamma_range'][0]<=parameters['ODMD_gamma_range'][1])
+                used_variables.append('ODMD_filter_count')
+                if 'ODMD_filter_count' not in parameters: parameters['ODMD_filter_count'] = 6
         if 'UVQPE' in parameters['algorithms']:
             used_variables.append('UVQPE_svd_threshold')
             if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
         
-        used_variables.append('fourier_filtering')
-        if 'fourier_filtering' in parameters:
-            if parameters['fourier_filtering']:
-                used_variables.append('gamma_range')
-                if 'gamma_range' not in parameters:
-                    parameters['gamma_range'] = (1,3)
-                else:
-                    assert(parameters['gamma_range'][0]<parameters['gamma_range'][1])
-                used_variables.append('filter_count')
-                if 'filter_count' not in parameters:
-                    parameters['filter_count'] = 6
-                else:
-                    assert(parameters['filter_count']>0)
-        else:
-            parameters['fourier_filtering'] = False
         keys = []
         for i in parameters.keys():
             keys.append(i)
@@ -168,13 +167,10 @@ def check(parameters):
 
 
 # define a system for naming files
-def make_filename(parameters, fourier_filtered=False, add_shots = False):
+def make_filename(parameters, add_shots = False):
     system = parameters['system']
     string = 'comp='+parameters['comp_type']+'_sys='+system
     string+='_n='+str(parameters['sites'])
-    if fourier_filtered:
-        string+='_gamma='+str(parameters['gamma_range'][0])+','+str(parameters['gamma_range'][1])
-        string+='_filters='+str(parameters['filter_count'])
     if system=='TFI':
         if parameters['comp_type'] != 'C':
             method_for_model = parameters['method_for_model']
