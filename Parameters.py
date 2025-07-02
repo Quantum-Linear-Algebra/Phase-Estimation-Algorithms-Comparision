@@ -20,7 +20,7 @@ def check(parameters):
     if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
     if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1)
     for algo in parameters['algorithms']:
-        assert(algo in ['VQPE','UVQPE','ODMD','QCELS','ML_QCELS'])
+        assert(algo in ['VQPE','UVQPE','ODMD','FODMD','QCELS','ML_QCELS'])
 
     
     returns = {}
@@ -130,18 +130,19 @@ def check(parameters):
             if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
             used_variables.append('ODMD_full_observable')
             if 'ODMD_full_observable' not in parameters: parameters['ODMD_full_observable'] = False
-            used_variables.append('ODMD_fourier_filter')
-            if 'ODMD_fourier_filter' not in parameters:
-                parameters['ODMD_fourier_filter'] = False
-            elif parameters['ODMD_fourier_filter'] == True:
-                used_variables.append('ODMD_gamma_range')
-                if 'ODMD_gamma_range' not in parameters:
-                    parameters['ODMD_gamma_range'] = (1,3)
-                else:
-                    assert(parameters['ODMD_gamma_range'][0]>=0 and parameters['ODMD_gamma_range'][1]>=0)
-                    assert(parameters['ODMD_gamma_range'][0]<=parameters['ODMD_gamma_range'][1])
-                used_variables.append('ODMD_filter_count')
-                if 'ODMD_filter_count' not in parameters: parameters['ODMD_filter_count'] = 6
+        if 'FODMD' in parameters['algorithms']:
+            used_variables.append('FODMD_svd_threshold')
+            if 'FODMD_svd_threshold' not in parameters: parameters['FODMD_svd_threshold'] = 10**-6
+            used_variables.append('FODMD_full_observable')
+            if 'FODMD_full_observable' not in parameters: parameters['FODMD_full_observable'] = False
+            used_variables.append('FODMD_gamma_range')
+            if 'FODMD_gamma_range' not in parameters:
+                parameters['FODMD_gamma_range'] = (1,3)
+            else:
+                assert(parameters['FODMD_gamma_range'][0]>=0 and parameters['FODMD_gamma_range'][1]>=0)
+                assert(parameters['FODMD_gamma_range'][0]<=parameters['FODMD_gamma_range'][1])
+            used_variables.append('FODMD_filter_count')
+            if 'FODMD_filter_count' not in parameters: parameters['FODMD_filter_count'] = 6
         if 'UVQPE' in parameters['algorithms']:
             used_variables.append('UVQPE_svd_threshold')
             if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6

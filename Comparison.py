@@ -21,7 +21,7 @@ parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables']  = 1000
 parameters['sites']        = 2
 parameters['Dt']           = 0.75
-parameters['shots']        = 10**0
+parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
 # parameters['overlap']      = .5   # the initial state overlap
@@ -48,23 +48,28 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms'] = ['ODMD', 'QCELS'] # ALGORITHMS: 'ODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
-parameters['const_obs']  = False
+parameters['algorithms'] = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
+parameters['const_obs']  = True
 parameters['reruns']     = 1
 
 # Algorithm Specific Parameters
-parameters['ODMD_svd_threshold']   = 9*10**-1
+parameters['ODMD_svd_threshold']   = 10**-1
 parameters['ODMD_full_observable'] = True
-parameters['ODMD_fourier_filter']  = True
-parameters['ODMD_gamma_range']     = (1,3) # (min, max)
-parameters['ODMD_filter_count']    = 6
+
+parameters['FODMD_svd_threshold']   = 10**-1
+parameters['FODMD_full_observable'] = True
+parameters['FODMD_gamma_range']     = (1,3) # (min, max)
+parameters['FODMD_filter_count']    = 6
+
 parameters['VQPE_svd_threshold']   = 10**-1
+
 parameters['UVQPE_svd_threshold']  = 9*10**-1
+
 parameters['ML_QCELS_time_steps']  = 5
 parameters['ML_QCELS_calc_Dt']     = False
 
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)
-    algo.run(parameters, skipping=1)
+    algo.run(parameters, skipping=10)
     graph_gen.run(parameters)

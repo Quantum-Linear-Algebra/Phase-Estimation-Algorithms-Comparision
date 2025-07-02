@@ -18,14 +18,14 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     # setup relavant variables
     reruns = parameters['reruns']
     only_ML_QCLES = parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS'] 
-    fourier_filtering = 'ODMD' in parameters['algorithms'] and parameters['ODMD_fourier_filter']
+    fourier_filtering = 'FODMD' in parameters['algorithms']
     if 'overlap' in parameters:
         spectrum_string = 'overlap='+str(parameters['overlap'])
     elif 'distribution' in parameters:
         spectrum_string = 'distribution='+str(parameters['distribution'])
     if fourier_filtering:
-        gamma_range = parameters['ODMD_gamma_range']
-        filters = parameters['ODMD_filter_count']
+        gamma_range = parameters['FODMD_gamma_range']
+        filters = parameters['FODMD_filter_count']
         gammas = np.linspace(gamma_range[0], gamma_range[1], filters)
     # get related data
     filename = make_filename(parameters, add_shots=True)+'.pkl'
@@ -129,7 +129,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
             fig, axs = plt.subplots(nrows=filters//5+1, ncols=min(5, filters), figsize=(min(5, filters)*8, (filters//5+1)*5))
             if filters == 1: axs = [axs]
             for i in range(reruns):
-                if parameters['ODMD_full_observable']: data = all_exp_vals[i]
+                if parameters['FODMD_full_observable']: data = all_exp_vals[i]
                 else: data = [j.real for j in all_exp_vals[i]]
                 ff_exp_vals = fourier_filter_exp_vals(data, gamma_range, filters)
                 for j in range(len(ff_exp_vals)):
@@ -143,8 +143,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
             fig.show()
     
     if parameters['algorithms']: # if theres at least one algorithm
-        colors = {'QCELS':'red', 'ODMD':'blue', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen'}
-        shapes = {'QCELS':'o', 'ODMD':'^', 'ML_QCELS':'X', 'UVQPE':'P', 'VQPE':'*'}
+        colors = {'QCELS':'red', 'ODMD':'blue', 'FODMD':'purple', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen'}
+        shapes = {'QCELS':'o', 'ODMD':'^', 'FODMD':'d', 'ML_QCELS':'X', 'UVQPE':'P', 'VQPE':'*'}
 
         xs = []
         for i in range(len(all_est_E_0s)):
@@ -173,7 +173,6 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
                 avg_err[i] += err
                 # plt.scatter(x, err, c = color, alpha = alpha)
             avg_err[i] /= len(all_est_E_0s[i])
-            # for j in range(len(avg_err[i])):
             plt.plot(x, avg_err[i], c = color, marker = shape, label = algo)
 
         if show_std:
@@ -262,9 +261,9 @@ def isolate_graphs(parameters):
         for graph_type in graph_types:
             exit_code = os.system('cp \'2-Graphing/Graphs/'+filename+'_'+graph_type+'.png\' Recent_Graphs/'+graph_type+'.png')
             assert(exit_code==0)
-            if 'ODMD' in parameters['algorithms'] and parameters['ODMD_fourier_filter'] and graph_type[-17:] == 'Expectation_Value':
-                gamma_range = parameters['ODMD_gamma_range']
-                filters = parameters['ODMD_filter_count']
+            if 'FODMD' in parameters['algorithms'] and graph_type[-17:] == 'Expectation_Value':
+                gamma_range = parameters['FODMD_gamma_range']
+                filters = parameters['FODMD_filter_count']
                 fn = make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)
                 exit_code = os.system('cp \'2-Graphing/Graphs/'+fn+'_'+graph_type+'.png\' Recent_Graphs/Fourier_Filtered_'+graph_type+'.png')
                 assert(exit_code==0)      

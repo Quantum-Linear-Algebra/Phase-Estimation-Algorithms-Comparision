@@ -44,7 +44,6 @@ def run(parameters, skipping=1):
             if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = all_sparse_exp_vals[run]
             else: ev = all_exp_vals[run]
             if algo_name == 'VQPE': Hexp_vals = all_Hexp_vals[run]
-
             print(str(run+1)+': Running', algo_name, 'with Dt =', parameters['Dt'])  
             if algo_name == 'QCELS' or algo_name == 'ML_QCELS': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, lambda_prior=lambda_prior)
             elif algo_name == 'VQPE': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, Hexp_vals=Hexp_vals)
@@ -66,14 +65,17 @@ def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0,
         Dt = parameters['Dt']
         threshold = parameters['ODMD_svd_threshold']
         full_observable = parameters['ODMD_full_observable']
-        fourier_filter  = parameters['ODMD_fourier_filter']
+        est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, skipping=skipping)
+    elif algo_name == 'FODMD':
+        Dt = parameters['Dt']
+        threshold = parameters['FODMD_svd_threshold']
+        full_observable = parameters['FODMD_full_observable']
         fourier_params = {}
-        if fourier_filter:
-            gamma_range = parameters['ODMD_gamma_range']
-            fourier_params['gamma_range'] = gamma_range
-            filters = parameters['ODMD_filter_count']
-            fourier_params['filters'] = filters
-        est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=fourier_filter, fourier_params=fourier_params, skipping=skipping)
+        gamma_range = parameters['FODMD_gamma_range']
+        fourier_params['gamma_range'] = gamma_range
+        filters = parameters['FODMD_filter_count']
+        fourier_params['filters'] = filters
+        est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=True, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
         est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps = False)
     elif algo_name == 'ML_QCELS':
@@ -122,4 +124,4 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     check(parameters)
-    run(parameters)
+    run(parameters, skipping=10)
