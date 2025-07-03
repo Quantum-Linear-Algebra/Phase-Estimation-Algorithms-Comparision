@@ -176,15 +176,13 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     trans_qc = transpile(qc, backend, optimization_level=3)
     return trans_qc
 
-def generate_Hadamard_test_data(ham,t_list,N_list,init_state,backend):
+def generate_Hadamard_test_data(ham,t_list,init_state,backend):
     """
     Input:
     ham: System Hamiltonian
     t_list: np.array of time points
-    N_list: np.array of numbers of samples
    
     -Ouput:
-    
     Z_Had: np.array of the output of Hadamard test (row)
     T_max: maximal Hamiltonian simulation time
     T_total: total Hamiltonian simulation time
@@ -223,28 +221,28 @@ def generate_Hadamard_test_data(ham,t_list,N_list,init_state,backend):
 
     return np.array(Z_ests)
 
-def generate_ts_distribution(T,N,gamma):
+def generate_ts_distribution(T,N,sigma):
     """ 
     Generate time samples from truncated Gaussian
     Input:
     T : variance of Gaussian
-    gamma : truncated parameter
+    sigma : truncated parameter
     N : number of samples
     
     Output: 
     t_list: np.array of time points
     """
-    t_list=truncnorm.rvs(-gamma, gamma, loc=0, scale=T, size=N)
+    t_list=truncnorm.rvs(-sigma, sigma, loc=0, scale=T, size=N)
     return t_list
 
-def generate_Z(ham,T,N,gamma,init_state,backend):
-    """ Generate Z samples for a given T,N,gamma
+def generate_Z(ham,T,N,sigma,init_state,backend):
+    """ Generate Z samples for a given T,N,sigma
     Input:
     
     ham: System Hamiltonian
     T : variance of Gaussian
     N : number of time samples
-    gamma : truncated parameter
+    sigma : truncated parameter
     
     Output: 
     
@@ -253,12 +251,9 @@ def generate_Z(ham,T,N,gamma,init_state,backend):
     T_max: maximal running time
     T_total: total running time
     """
-    t_list = generate_ts_distribution(T,N,gamma)
-    N_list = np.ones(len(t_list))
-    T_max = max(np.abs(t_list))
-    T_total = sum(np.multiply(np.abs(t_list),N_list))
-    Z_est = generate_Hadamard_test_data(ham,t_list,N_list,init_state,backend)
-    return Z_est, t_list, T_max, T_total
+    t_list = generate_ts_distribution(T,N,sigma)
+    Z_ests = generate_Hadamard_test_data(ham,t_list,init_state,backend)
+    return Z_ests, t_list
 
 def QMEGS_algo(Z_est, d_x, t_list, alpha, T):
     """ 
@@ -285,30 +280,43 @@ def QMEGS_algo(Z_est, d_x, t_list, alpha, T):
     G_detail=np.abs(Z_est.dot(np.exp(1j*np.outer(t_list,x)))/len(Z_est))
     max_idx_detail = np.argmax(G_detail)
     Dominant_freq=x[max_idx_detail]
-    interval_max=x[max_idx_detail]+alpha/T
-    interval_min=x[max_idx_detail]-alpha/T
-    G=np.multiply(G,x_rough>interval_max)+np.multiply(G,x_rough<interval_min)
     return Dominant_freq
 
-def QMEGS_ground_energy(ham,init_state,T_list,N,alpha,gamma,q):
-    T_total_QMEGS=np.zeros(len(T_list),dtype='float')
+def QMEGS_ground_energy(Z_ests,t_list,T_max,alpha,q, skipping = 1):
+    """ 
+    Uses QMEGS to estimate ground state energy
+    -Input:
+    Z_ests: np.array of signal
+    t_list: np.array of time points
+    T_max: maximal time
+    alpha: interval constant
+    q: searching parameter
 
-    for i in range(len(T_list)):
-        T_max=T_list[i]
+    -Output:
+    output_energy: ground state energy estimate
+    len(Z_ests): number of observables
+    T_total_QMEGS: Total running time of QMEGS
+    """
+    output_energies = []
+    # T_totals = []
+    for i in range(len(Z_ests)//skipping):
+        idx = i*skipping
         d_x=q/T_max
-        Z_est,t_list, _, _ = generate_Z(ham,T_max,N,gamma,init_state,backend)
-        T_total_QMEGS[i]+=sum(np.abs(t_list))
-        output_energy = QMEGS_algo(Z_est, d_x, t_list, alpha, T_max)
-        print('est', output_energy, 'real', eigs[0])
-    T_total_QMEGS=T_total_QMEGS
-    return output_energy, T_total_QMEGS
+        # T_totals.append(sum(np.abs(t_list[:i])))
+        output_energies.append(QMEGS_algo(Z_ests[:idx], d_x, t_list[:idx], alpha, T_max))
+        print('est', output_energies[i], 'real', eigs[0])
+    plt.figure()
+    plt.plot(abs(np.array(output_energies) - eigs[0]))
+    plt.yscale('log')
+    plt.savefig('QMEGS')
+    return output_energies, [2*(i*skipping+1) for i in range(len(Z_ests)//skipping)]#, T_totals
 
 if __name__ == '__main__':
-    T_list=np.array([200,400])
-    N=100
-    alpha=5
-    gamma=0.5
-    q=0.05
+    T = 1000 # maximal running time/ variance of gaussian
+    N = 500
+    sigma = 0.5
+    q = 0.01
+    alpha = q*100
 
     num_sites, system, scale_factor = 2, 'TFIM', 3*np.pi/4
 
@@ -316,8 +324,10 @@ if __name__ == '__main__':
     eigs, vecs = eigh(ham)
     init_state = vecs[:,0]
 
-    # backend = AerSimulator()
-    service = QRS(channel='ibm_cloud', instance='crn:v1:bluemix:public:quantum-computing:us-east:a/b8ff6077c08a4ea9871560ccb827d457:35e644dc-8b99-4215-957b-6ea07c220e44::', token='e6tV4CVL8QZQKB5vR-GPkCybLxcWhLy50Z6p5gHpaZBE')
-    backend = service.backend('ibm_rensselaer')
+    backend = AerSimulator()
+    # api = input('token')
+    # service = QRS(channel='ibm_cloud', instance='crn:v1:bluemix:public:quantum-computing:us-east:a/b8ff6077c08a4ea9871560ccb827d457:35e644dc-8b99-4215-957b-6ea07c220e44::', token=api)
+    # backend = service.backend('ibm_rensselaer')
 
-    energy_est, T_total = QMEGS_ground_energy(ham,init_state,T_list,N,alpha,gamma,q)
+    Z_ests,t_list = generate_Z(ham,T,N,sigma,init_state,backend)
+    energy_est, observables = QMEGS_ground_energy(Z_ests,t_list,T,alpha,q, skipping = 50)
