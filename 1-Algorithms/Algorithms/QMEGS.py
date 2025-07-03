@@ -299,9 +299,9 @@ def QMEGS_ground_energy(Z_ests,t_list,T_max,alpha,q, skipping = 1):
     """
     output_energies = []
     # T_totals = []
+    d_x=q/T_max
     for i in range(len(Z_ests)//skipping):
         idx = i*skipping
-        d_x=q/T_max
         # T_totals.append(sum(np.abs(t_list[:i])))
         output_energies.append(QMEGS_algo(Z_ests[:idx], d_x, t_list[:idx], alpha, T_max))
         print('est', output_energies[i], 'real', eigs[0])

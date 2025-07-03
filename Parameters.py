@@ -20,7 +20,7 @@ def check(parameters):
     if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
     if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1)
     for algo in parameters['algorithms']:
-        assert(algo in ['VQPE','UVQPE','ODMD','FODMD','QCELS','ML_QCELS'])
+        assert(algo in ['VQPE','UVQPE','ODMD','FODMD','QCELS','ML_QCELS','QMEGS'])
 
     
     # verify system parameters are setup correctly
@@ -146,6 +146,15 @@ def check(parameters):
     if 'UVQPE' in parameters['algorithms']:
         used_variables.append('UVQPE_svd_threshold')
         if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
+    if 'QMEGS' in parameters['algorithms']:
+        used_variables.append('QMEGS_T')
+        if 'QMEGS_T' not in parameters: parameters['QMEGS_T'] = 1000
+        used_variables.append('QMEGS_sigma')
+        if 'QMEGS_sigma' not in parameters: parameters['QMEGS_sigma'] = 0.5
+        used_variables.append('QMEGS_q')
+        if 'QMEGS_q' not in parameters: parameters['QMEGS_q'] = 0.05
+        used_variables.append('QMEGS_alpha')
+        if 'QMEGS_alpha' not in parameters: parameters['QMEGS_alpha'] = 5
         
     keys = []
     for i in parameters.keys():

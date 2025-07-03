@@ -68,6 +68,11 @@ parameters['UVQPE_svd_threshold']  = 9*10**-1
 parameters['ML_QCELS_time_steps']  = 5
 parameters['ML_QCELS_calc_Dt']     = False
 
+parameters['QMEGS_T']              = 100
+parameters['QMEGS_sigma']          = 0.5
+parameters['QMEGS_q']              = 0.05
+parameters['QMEGS_alpha']          = 5
+
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)

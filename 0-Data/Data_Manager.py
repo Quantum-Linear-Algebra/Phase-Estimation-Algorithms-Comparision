@@ -22,6 +22,8 @@ from qiskit_aer.noise import NoiseModel
 from qiskit_nature.second_q.drivers import PySCFDriver
 from qiskit_nature.second_q.mappers import ParityMapper
 
+from QMEGS import generate_ts_distribution
+
 # Prevent annoying migration warnings
 import warnings 
 warnings.simplefilter("ignore")
@@ -400,7 +402,7 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string=''):
                 gates.append(controlled_U)
     return gates, statevector
 
-def generate_exp_vals(parameters, reruns):
+def generate_exp_vals(parameters):
     '''
     Generate the exp_vals spectrum
 
@@ -429,31 +431,39 @@ def generate_exp_vals(parameters, reruns):
         all_exp_vals['sparse'] = []
     if 'VQPE' in parameters['algorithms']:
         all_exp_vals['vqpets'] = []
+    if 'QMEGS' in parameters['algorithms']:
+        all_exp_vals['gausts'] = []
     
-    for _ in  range(reruns):
-        if 'linear' in all_exp_vals:
-            exp_vals = []
-            for i in range(num_timesteps):
-                exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
-            all_exp_vals['linear'].append(exp_vals)
-        if 'sparse' in all_exp_vals:
-            exp_vals = {}
-            iteration = 0
-            time_steps_per_itr = parameters['ML_QCELS_time_steps']
-            while len(exp_vals) < num_timesteps:
-                for i in range(time_steps_per_itr):
-                    time = 2**iteration*i
-                    if time in exp_vals: continue
-                    exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
-                iteration+=1
-            all_exp_vals['sparse'].append(exp_vals)
-        if 'vqpets' in all_exp_vals:
-            exp_vals = []
-            length = num_timesteps
-            if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
-            for i in range(length):
-                exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
-            all_exp_vals['vqpets'].append(exp_vals)
+    if 'linear' in all_exp_vals:
+        exp_vals = []
+        for i in range(num_timesteps):
+            exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
+        all_exp_vals['linear'].append(exp_vals)
+    if 'sparse' in all_exp_vals:
+        exp_vals = {}
+        iteration = 0
+        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        while len(exp_vals) < num_timesteps:
+            for i in range(time_steps_per_itr):
+                time = 2**iteration*i
+                if time in exp_vals: continue
+                exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
+            iteration+=1
+        all_exp_vals['sparse'].append(exp_vals)
+    if 'vqpets' in all_exp_vals:
+        exp_vals = []
+        length = num_timesteps
+        if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
+        for i in range(length):
+            exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
+        all_exp_vals['vqpets'].append(exp_vals)
+    if 'gausts' in all_exp_vals:
+        exp_vals = {}
+        times = generate_ts_distribution(parameters['QMEGS_T'],num_timesteps,parameters['QMEGS_sigma'])
+        for t in times:
+            exp_vals[t] = np.sum(np.array(spectrum)*np.exp(-1j*E*t))
+        all_exp_vals['gausts'].append(exp_vals)
+
     return all_exp_vals
 
 def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False, pauli_string=''):
@@ -722,7 +732,7 @@ def run(parameters, returns):
     all_exp_vals = {}
     if parameters['comp_type'] == 'C':
         print('Generating Data')
-        all_exp_vals = generate_exp_vals(parameters, reruns)
+        all_exp_vals = generate_exp_vals(parameters)
     elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
         if 'linear' in used_time_series: all_exp_vals['linear'] = []
         if 'sparse' in used_time_series: all_exp_vals['sparse'] = []
