@@ -76,5 +76,5 @@ parameters['QMEGS_alpha']          = 5
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)
-    algo.run(parameters, skipping=10)
+    algo.run(parameters, skipping=1)
     graph_gen.run(parameters)

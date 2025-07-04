@@ -1,7 +1,7 @@
 import pickle
 import sys, os
 sys.path.append('.')
-from Parameters import make_filename
+from Parameters import make_filename, check_contains_linear
 sys.path.append('./1-Algorithms/Algorithms')
 import numpy as np
 from numpy.linalg import norm
@@ -9,45 +9,44 @@ from scipy.linalg import eig
 from ODMD import ODMD
 from QCELS import QCELS
 from VQPE import VQPE_ground_energy, UVQPE_ground_energy
+from QMEGS import QMEGS_ground_energy
 from ML_QCELS import ML_QCELS
 sys.path.append('./0-Data')
 
 def run(parameters, skipping=1):
+    print('\nRunning Algorithms')
     filename = make_filename(parameters, add_shots=True)+'.pkl'
-    all_exp_vals = []
-    if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
-        with open('0-Data/Expectation_Values/linear_'+filename, 'rb') as file:
-            all_exp_vals = pickle.load(file)
+    contains_linear = check_contains_linear(parameters['algorithms'])
+    all_exp_vals = {}
+    if contains_linear:
+        with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key='linear')+'.pkl', 'rb') as file:
+            all_exp_vals['linear'] = pickle.load(file)
     if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: 
-        with open('0-Data/Expectation_Values/sparse_'+filename, 'rb') as file:
-            all_sparse_exp_vals = pickle.load(file)
+        with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key='sparse')+'.pkl', 'rb') as file:
+            all_exp_vals['sparse'] = pickle.load(file)
     if 'VQPE' in parameters['algorithms']:
-        with open('0-Data/Expectation_Values/vqpets_'+filename, 'rb') as file:
-            all_Hexp_vals = pickle.load(file)
-    print()
+        with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key='vqpets')+'.pkl', 'rb') as file:
+            all_exp_vals['vqpets'] = pickle.load(file)
+    if 'QMEGS' in parameters['algorithms']:
+        with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key='gausts')+'.pkl', 'rb') as file:
+            all_exp_vals['gausts'] = pickle.load(file)
     
-    if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
-        # Approximate what Hartree-Fock would estimate
-        E_0 = parameters['scaled_E_0']
-        # lambda_prior = E_0
-        order = np.floor(np.log10(np.abs(E_0)))
-        digits = 4
-        lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+np.random.rand())*(10**(order-digits+1))
-        print('Lambda Prior for QCELS based methods:', lambda_prior)
     for algo_name in parameters['algorithms']:
         all_observables = []
         all_est_E_0s = []
-        loop_num = len(all_exp_vals)
-        if parameters['algorithms'] == ['ML_QCELS'] and parameters['const_obs']:
-            loop_num = len(all_sparse_exp_vals)
-        for run in range(loop_num):           
-            if algo_name == 'ML_QCELS' and parameters['const_obs']: ev = all_sparse_exp_vals[run]
-            else: ev = all_exp_vals[run]
-            if algo_name == 'VQPE': Hexp_vals = all_Hexp_vals[run]
-            print(str(run+1)+': Running', algo_name, 'with Dt =', parameters['Dt'])  
-            if algo_name == 'QCELS' or algo_name == 'ML_QCELS': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, lambda_prior=lambda_prior)
-            elif algo_name == 'VQPE': observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping, Hexp_vals=Hexp_vals)
-            else: observables, est_E_0s = run_single_algo(algo_name, ev, parameters, skipping=skipping)
+        reruns = parameters['reruns']
+        for key in all_exp_vals: assert(len(all_exp_vals[key])>=reruns)
+        for run in range(reruns):
+            algo_exp_vals = {}
+            if parameters['const_obs'] and algo_name == 'ML_QCELS':
+                algo_exp_vals['sparse_exp_vals'] = all_exp_vals['sparse'][run]
+            elif algo_name == 'QMEGS':
+                algo_exp_vals['gauss_exp_vals'] = all_exp_vals['gausts'][run]
+            else: 
+                algo_exp_vals['exp_vals'] = all_exp_vals['linear'][run]
+                if algo_name == 'VQPE': algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][run]
+            
+            observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, skipping=skipping)
             all_observables.append(observables)
             all_est_E_0s.append(est_E_0s)
         try: os.mkdir('1-Algorithms/Results')
@@ -56,15 +55,17 @@ def run(parameters, skipping=1):
             pickle.dump([all_observables, all_est_E_0s], file)
         print('Saved', algo_name+'\'s results into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
 
-def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0, Hexp_vals=[]):  
-    exp_vals[0] = 1 + 0j
+def run_single_algo(algo_name, algo_exp_vals, parameters, skipping=1):  
+    for key in algo_exp_vals:
+        if key == 'exp_vals' or key == 'sparse_exp_vals':
+            algo_exp_vals[key][0] = 1 + 0j
     if algo_name == 'QCELS':
-        assert(lambda_prior != 0)
-        est_E_0s, observables = QCELS(exp_vals, parameters['Dt'], lambda_prior, skipping=skipping)
+        est_E_0s, observables = QCELS(algo_exp_vals['exp_vals'], parameters['Dt'], parameters['QCELS_lambda_prior'], skipping=skipping)
     elif algo_name == 'ODMD':
         Dt = parameters['Dt']
         threshold = parameters['ODMD_svd_threshold']
         full_observable = parameters['ODMD_full_observable']
+        exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, skipping=skipping)
     elif algo_name == 'FODMD':
         Dt = parameters['Dt']
@@ -75,15 +76,25 @@ def run_single_algo(algo_name, exp_vals, parameters, skipping=1, lambda_prior=0,
         fourier_params['gamma_range'] = gamma_range
         filters = parameters['FODMD_filter_count']
         fourier_params['filters'] = filters
+        exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=True, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
-        est_E_0s, observables = UVQPE_ground_energy(exp_vals, parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping, show_steps = False)
+        est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], parameters['Dt'],  parameters['UVQPE_svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
-        assert(lambda_prior != 0)
-        est_E_0s, observables = ML_QCELS(exp_vals, parameters['Dt'], parameters['ML_QCELS_time_steps'], lambda_prior, sparse=parameters['const_obs'])
+        sparse = parameters['const_obs']
+        if sparse: exp_vals = algo_exp_vals['sparse_exp_vals']
+        else: exp_vals = algo_exp_vals['exp_vals']
+        est_E_0s, observables = ML_QCELS(exp_vals, parameters['Dt'], parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'], sparse=sparse)
     elif algo_name == 'VQPE':
-        assert(len(Hexp_vals) != 0)
-        est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['pauli_strings']), parameters['VQPE_svd_threshold'], skipping=skipping, show_steps=False)
+        exp_vals = algo_exp_vals['exp_vals']
+        Hexp_vals = algo_exp_vals['Hexp_vals']
+        est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['pauli_strings']), parameters['VQPE_svd_threshold'], skipping=skipping)
+    elif algo_name == 'QMEGS':
+        exp_vals = algo_exp_vals['gauss_exp_vals']
+        T = parameters['QMEGS_T']
+        alpha = parameters['QMEGS_alpha']
+        q = parameters['QMEGS_q']
+        est_E_0s, observables = QMEGS_ground_energy(exp_vals, T, alpha, q, skipping=skipping)
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']

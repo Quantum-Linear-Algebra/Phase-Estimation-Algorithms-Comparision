@@ -10,14 +10,16 @@ for path in paths:
     if path not in sys.path:
         sys.path.append(path)
 
-from Parameters import make_filename
+from Parameters import make_filename, check_contains_linear
 from Data_Manager import create_hamiltonian
 from ODMD import fourier_filter_exp_vals
 
 def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
+    print('\nGenerating Graphs')
     # setup relavant variables
     reruns = parameters['reruns']
-    only_ML_QCLES = parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS'] 
+    
+    contains_linear = check_contains_linear(parameters['algorithms'])
     fourier_filtering = 'FODMD' in parameters['algorithms']
     if 'overlap' in parameters:
         spectrum_string = 'overlap='+str(parameters['overlap'])
@@ -31,11 +33,13 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     filename = make_filename(parameters, add_shots=True)+'.pkl'
     try: os.mkdir('2-Graphing/Graphs')
     except: pass
-    if not only_ML_QCLES:
+    if contains_linear:
         try:
             with open('0-Data/Expectation_Values/linear_'+filename, 'rb') as file:
                 all_exp_vals = pickle.load(file) # reruns, exp_vals
-        except: print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
+        except Exception as e:
+            print(e)
+            print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
 
     all_est_E_0s = []
     all_observables = []
@@ -45,7 +49,9 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
                 [algo_observables, algo_est_E_0s] = pickle.load(file)
             all_est_E_0s.append(algo_est_E_0s)
             all_observables.append(algo_observables)
-        except: print('Failed to grab energy estimates for '+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
+        except Exception as e:
+            print(e)
+            print('Failed to grab energy estimates for '+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
     
     H,real_E_0 = create_hamiltonian(parameters)
     E,vecs = eigh(H)
@@ -54,7 +60,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     sv = parameters['sv']
 
     # check lengths of data
-    if not only_ML_QCLES:
+    if contains_linear:
         if reruns > len(all_exp_vals):
             print('Number of linear time series is too small. Reducing reruns.')
             reruns=len(all_exp_vals)
@@ -77,7 +83,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     plt.show()
 
     alpha = 1/reruns
-    if not only_ML_QCLES:
+    if contains_linear:
         plt.figure()
         avg_exp_vals = np.zeros(len(all_exp_vals[0]), dtype=complex)
         for i in range(reruns):
@@ -143,8 +149,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
             fig.show()
     
     if parameters['algorithms']: # if theres at least one algorithm
-        colors = {'QCELS':'red', 'ODMD':'blue', 'FODMD':'purple', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen'}
-        shapes = {'QCELS':'o', 'ODMD':'^', 'FODMD':'d', 'ML_QCELS':'X', 'UVQPE':'P', 'VQPE':'*'}
+        colors = {'QCELS':'red', 'ODMD':'blue', 'FODMD':'purple', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen', 'QMEGS':'hotpink'}
+        shapes = {'QCELS':'o', 'ODMD':'^', 'FODMD':'d', 'ML_QCELS':'X', 'UVQPE':'P', 'VQPE':'*', 'QMEGS':'|'}
 
         xs = []
         for i in range(len(all_est_E_0s)):
@@ -173,6 +179,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
                 avg_err[i] += err
                 # plt.scatter(x, err, c = color, alpha = alpha)
             avg_err[i] /= len(all_est_E_0s[i])
+            # print(algo, x, avg_err[i])
             plt.plot(x, avg_err[i], c = color, marker = shape, label = algo)
 
         if show_std:
@@ -244,6 +251,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
+    contains_linear = check_contains_linear(parameters['algorithms'])
+    
     exit_code = os.system('rm -rf Recent_Graphs')
     assert(exit_code == 0)
     print('Attempting to copy newly generated graphs.')
@@ -255,7 +264,7 @@ def isolate_graphs(parameters):
         if parameters['algorithms']:
             graph_types.append('Abs_Error')
             graph_types.append('Convergence')
-        if not (parameters['const_obs'] and parameters['algorithms'] == ['ML_QCELS']):
+        if contains_linear:
             graph_types.append('Expectation_Value')
             graph_types.append('Fourier_Transform_Expectation_Value')
         for graph_type in graph_types:

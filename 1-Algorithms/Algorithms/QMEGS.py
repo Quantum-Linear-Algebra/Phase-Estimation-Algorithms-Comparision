@@ -282,7 +282,7 @@ def QMEGS_algo(Z_est, d_x, t_list, alpha, T):
     Dominant_freq=x[max_idx_detail]
     return Dominant_freq
 
-def QMEGS_ground_energy(Z_ests,t_list,T_max,alpha,q, skipping = 1):
+def QMEGS_ground_energy(exp_vals,T_max,alpha,q, skipping = 1):
     """ 
     Uses QMEGS to estimate ground state energy
     -Input:
@@ -297,6 +297,23 @@ def QMEGS_ground_energy(Z_ests,t_list,T_max,alpha,q, skipping = 1):
     len(Z_ests): number of observables
     T_total_QMEGS: Total running time of QMEGS
     """
+    t_list = list(exp_vals.keys())
+    Z_ests = []
+    for time in t_list:
+        exp_val = exp_vals[time]
+        re_p0 = (exp_val.real+1)/2
+        im_p0 = (exp_val.imag+1)/2
+        
+        if re_p0 > .5: Re = 1
+        # elif re_p0 == .5: Re = 0
+        else: Re = -1
+
+        if im_p0 > .5: Im = 1
+        # elif im_p0 == .5: Im = 0
+        else: Im = -1
+        Z_ests.append(complex(Re, Im))
+    Z_ests = np.array(Z_ests)
+    t_list = np.array(t_list)
     output_energies = []
     # T_totals = []
     d_x=q/T_max
@@ -304,11 +321,6 @@ def QMEGS_ground_energy(Z_ests,t_list,T_max,alpha,q, skipping = 1):
         idx = i*skipping
         # T_totals.append(sum(np.abs(t_list[:i])))
         output_energies.append(QMEGS_algo(Z_ests[:idx], d_x, t_list[:idx], alpha, T_max))
-        print('est', output_energies[i], 'real', eigs[0])
-    plt.figure()
-    plt.plot(abs(np.array(output_energies) - eigs[0]))
-    plt.yscale('log')
-    plt.savefig('QMEGS')
     return output_energies, [2*(i*skipping+1) for i in range(len(Z_ests)//skipping)]#, T_totals
 
 if __name__ == '__main__':
@@ -331,3 +343,7 @@ if __name__ == '__main__':
 
     Z_ests,t_list = generate_Z(ham,T,N,sigma,init_state,backend)
     energy_est, observables = QMEGS_ground_energy(Z_ests,t_list,T,alpha,q, skipping = 50)
+    plt.figure()
+    plt.plot(abs(np.array(energy_est) - eigs[0]))
+    plt.yscale('log')
+    plt.savefig('QMEGS')

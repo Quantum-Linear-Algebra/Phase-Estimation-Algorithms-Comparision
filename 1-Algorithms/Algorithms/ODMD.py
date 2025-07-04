@@ -133,7 +133,7 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)
         if precision!=0 and check_convergence(est_E_0s, precision): break
-        obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping+1)]
+        obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping)]
         if full_observable: obs = [i*2 for i in obs]
     return est_E_0s, obs
 

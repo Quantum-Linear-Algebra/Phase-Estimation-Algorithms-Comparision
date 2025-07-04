@@ -1,7 +1,7 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from scipy.linalg import eigh
-from numpy import ceil, sqrt, zeros
+from numpy import ceil, sqrt, zeros, log10, floor, abs, random
 from Service import create_hardware_backend
 from sys import exit
 import pickle
@@ -106,6 +106,20 @@ def check(parameters):
         total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
         if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
             parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
+    if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
+        # Approximate what Hartree-Fock would estimate
+        if 'QCELS_lambda_prior' in parameters:
+            lambda_prior = parameters['QCELS_lambda_prior']
+        else:
+            E_0 = parameters['scaled_E_0']
+            order = floor(log10(abs(E_0)))
+            if 'QCELS_lambda_digits' in parameters:
+                digits = parameters['QCELS_lambda_digits']
+                if digits == -1: digits = int(random.randint(1,3))
+            else: digits = 2
+            used_variables.append('QCELS_lambda_prior')
+            lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+random.rand())*(10**(order-digits+1))
+        parameters['QCELS_lambda_prior'] = lambda_prior
     if 'ML_QCELS' in parameters['algorithms']:
         # make sure the time steps per iteration is defined
         used_variables.append('ML_QCELS_time_steps')
@@ -175,12 +189,14 @@ def check(parameters):
     print()
     return returns
 
-
 # define a system for naming files
-def make_filename(parameters, add_shots = False):
+def make_filename(parameters, add_shots = False, key=''):
     system = parameters['system']
-    string = 'comp='+parameters['comp_type']+'_sys='+system
-    string+='_n='+str(parameters['sites'])
+    
+    string = ''
+    if key != '': string += key+'_'
+    string += 'comp='+parameters['comp_type']+'_sys='+system
+    string +='_n='+str(parameters['sites'])
     if system=='TFI':
         if parameters['comp_type'] != 'C':
             method_for_model = parameters['method_for_model']
@@ -200,17 +216,34 @@ def make_filename(parameters, add_shots = False):
     string+='_scale='+str(parameters['scaling'])
     string+='_shift='+str(parameters['shifting'])
     if 'overlap' in parameters: string+='_overlap='+str(parameters['overlap'])
-    if 'distribution' in parameters: string+='_distr='+str(parameters['distribution'])
+    if 'distribution' in parameters:
+        string+='_distr=['
+        for i in parameters['distribution'][:-1]:
+            string+=f'{i:0.2},'
+        var = parameters['distribution'][-1]
+        string+=f'{var:0.2}]'
     string+='_Dt='+str(parameters['Dt'])
     if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
         string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
     else:
         string += '_obs='+str(parameters['observables'])
+    if key == 'gausts':
+        string += '_sigma='+str(parameters['QMEGS_sigma'])
+        string += '_sigma='+str(parameters['QMEGS_T'])
     if add_shots and parameters['comp_type'] != 'C':
         string += '_reruns='+str(parameters['reruns'])
         string += '_shots='+str(parameters['shots'])
     return string
 
+def check_contains_linear(algos):
+    linear = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS']
+    for algo in algos:
+        if algo in linear:
+            return True
+    return False
+    
+
 if __name__ == '__main__':
     from Comparison import parameters
     check(parameters)
+
