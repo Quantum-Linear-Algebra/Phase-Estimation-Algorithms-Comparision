@@ -318,17 +318,17 @@ def QMEGS_ground_energy(exp_vals,T_max,alpha,q, skipping = 1):
     # T_totals = []
     d_x=q/T_max
     for i in range(len(Z_ests)//skipping):
-        idx = i*skipping
+        idx = i*skipping + 1
         # T_totals.append(sum(np.abs(t_list[:i])))
         output_energies.append(QMEGS_algo(Z_ests[:idx], d_x, t_list[:idx], alpha, T_max))
     return output_energies, [2*(i*skipping+1) for i in range(len(Z_ests)//skipping)]#, T_totals
 
 if __name__ == '__main__':
-    T = 1000 # maximal running time/ variance of gaussian
-    N = 500
+    T = 10000000 # maximal running time/ variance of gaussian
+    N = 100
     sigma = 0.5
-    q = 0.01
-    alpha = q*100
+    q = 1
+    alpha = 5
 
     num_sites, system, scale_factor = 2, 'TFIM', 3*np.pi/4
 
