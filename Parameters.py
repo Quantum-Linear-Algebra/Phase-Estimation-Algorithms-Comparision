@@ -1,7 +1,7 @@
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from scipy.linalg import eigh
-from numpy import ceil, sqrt, zeros, log10, floor, abs, random
+from numpy import ceil, sqrt, zeros, log10, floor, abs, random, linspace
 from Service import create_hardware_backend
 from sys import exit
 import pickle
@@ -18,7 +18,7 @@ def check(parameters):
     assert(parameters['comp_type'] == 'C' or parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J')
     assert(parameters['system'] == 'TFI' or parameters['system'] == 'SPI' or parameters['system'] == 'HUB' or parameters['system'] == 'H_2')
     if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
-    if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1)
+    if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1.0000000000000099) # rounding
     for algo in parameters['algorithms']:
         assert(algo in ['VQPE','UVQPE','ODMD','FODMD','QCELS','ML_QCELS','QMEGS'])
 
@@ -39,11 +39,11 @@ def check(parameters):
         parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'Dt', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv']
-        if parameters['comp_type'] != 'C':
-            used_variables.append('shots')
-            if 'shots' not in parameters: parameters['shots'] = 100
-            if 'reruns' not in parameters: parameters['reruns'] = 1
+        used_variables = ['comp_type', 'algorithms', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv', 'shots']
+        parameters['T'] = float(parameters['T'])
+        assert(parameters['T']>0)
+        if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
+        if 'reruns' not in parameters: parameters['reruns'] = 1
         else:
             parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
@@ -89,14 +89,21 @@ def check(parameters):
             used_variables.append('distribution')
             parameters['sv'] = zeros(len(eig_vec[:,0]), dtype=complex)
             for i in range(len(parameters['distribution'])):
-                print(i, parameters['distribution'])
+                # print(i, parameters['distribution'])
                 parameters['sv'] += sqrt(parameters['distribution'][i])*eig_vec[:,i]
-                print(parameters['sv']@eig_vec[:,i])
+                # print(parameters['sv']@eig_vec[:,i])
             # assert(parameters['sv']@eig_vec[:,0]==parameters['distribution'][0]) 
         else: parameters['sv'] = eig_vec[:,0]
         parameters['scaled_E_0'] = energy[0]
         
         if 'const_obs' not in parameters: parameters['const_obs'] = False
+        used_variables.append('final_times')
+        if not parameters['const_obs']:
+            num_sims = 10
+            if 'num_time_sims' in parameters: num_sims = parameters['num_time_sims']
+            parameters['final_times'] = linspace(0, parameters['T'], num_sims+1)[1:] # excluding 0
+        else:
+            parameters['final_times'] = [parameters['T']]
 
     if 'VQPE' in parameters['algorithms']:
         used_variables.append('VQPE_svd_threshold')
@@ -138,7 +145,7 @@ def check(parameters):
             parameters['observables'] = len(exp_vals)*2
         if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
             delta = 1*sqrt(1-parameters['overlap'])
-            parameters['Dt'] = delta/parameters['ML_QCELS_time_steps']
+            parameters['T'] = parameters['observables']*delta/parameters['ML_QCELS_time_steps']
     if 'ODMD' in parameters['algorithms']:
         used_variables.append('ODMD_svd_threshold')
         if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
@@ -161,14 +168,14 @@ def check(parameters):
         used_variables.append('UVQPE_svd_threshold')
         if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
     if 'QMEGS' in parameters['algorithms']:
-        used_variables.append('QMEGS_T')
-        if 'QMEGS_T' not in parameters: parameters['QMEGS_T'] = 1000
         used_variables.append('QMEGS_sigma')
         if 'QMEGS_sigma' not in parameters: parameters['QMEGS_sigma'] = 0.5
         used_variables.append('QMEGS_q')
         if 'QMEGS_q' not in parameters: parameters['QMEGS_q'] = 0.05
         used_variables.append('QMEGS_alpha')
         if 'QMEGS_alpha' not in parameters: parameters['QMEGS_alpha'] = 5
+        used_variables.append('QMEGS_K')
+        if 'QMEGS_K' not in parameters: parameters['QMEGS_K'] = 1
         
     keys = []
     for i in parameters.keys():
@@ -190,7 +197,7 @@ def check(parameters):
     return returns
 
 # define a system for naming files
-def make_filename(parameters, add_shots = False, key=''):
+def make_filename(parameters, add_shots = False, key='', T = -1):
     system = parameters['system']
     
     string = ''
@@ -218,24 +225,26 @@ def make_filename(parameters, add_shots = False, key=''):
     if 'overlap' in parameters: string+='_overlap='+str(parameters['overlap'])
     if 'distribution' in parameters:
         string+='_distr=['
-        for i in parameters['distribution'][:-1]:
+        for i in parameters['distribution'][:3][:-1]:
             string+=f'{i:0.2},'
-        var = parameters['distribution'][-1]
+        var = parameters['distribution'][3]
         string+=f'{var:0.2}]'
-    string+='_Dt='+str(parameters['Dt'])
+    if T == -1: string+='_T='+str(parameters['T'])
+    else: string+='_T='+str(T)
     if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
         string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
     else:
         string += '_obs='+str(parameters['observables'])
     if key == 'gausts':
         string += '_sigma='+str(parameters['QMEGS_sigma'])
-        string += '_sigma='+str(parameters['QMEGS_T'])
     if add_shots and parameters['comp_type'] != 'C':
         string += '_reruns='+str(parameters['reruns'])
         string += '_shots='+str(parameters['shots'])
     return string
 
-def check_contains_linear(algos):
+def check_contains_linear(algos, const_obs):
+    if not const_obs and 'ML_QCELS' in algos:
+        return True
     linear = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS']
     for algo in algos:
         if algo in linear:

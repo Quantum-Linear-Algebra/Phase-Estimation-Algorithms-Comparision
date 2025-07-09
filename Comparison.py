@@ -17,15 +17,15 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables']  = 1000
-parameters['sites']        = 2
-parameters['Dt']           = 0.75
+parameters['comp_type']    = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['observables']  = 100
+parameters['sites']        = 8
+parameters['T']            = .3
 parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
-# parameters['overlap']      = .5   # the initial state overlap
-parameters['distribution'] = [.3]+[(1-.3)/3]*3
+parameters['overlap']      = 1   # the initial state overlap
+# parameters['distribution'] = [.4,.4]+[(1-.8)/(2**8-2)]*(2**8-2)
 
 # SPECIFIC SYSTEM TYPE
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
@@ -48,9 +48,10 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms'] = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS'
-parameters['const_obs']  = True
-parameters['reruns']     = 1
+parameters['algorithms']    = ['ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
+parameters['const_obs']     = False # if False then constant time
+parameters['num_time_sims'] = 10 
+parameters['reruns']        = 1
 
 # Algorithm Specific Parameters
 parameters['ODMD_svd_threshold']   = 10**-1
@@ -68,10 +69,10 @@ parameters['UVQPE_svd_threshold']  = 9*10**-1
 parameters['ML_QCELS_time_steps']  = 5
 parameters['ML_QCELS_calc_Dt']     = False
 
-parameters['QMEGS_T']              = 100
-parameters['QMEGS_sigma']          = 0.5
+parameters['QMEGS_sigma']          = 1
 parameters['QMEGS_q']              = 0.05
 parameters['QMEGS_alpha']          = 5
+parameters['QMEGS_K']              = 2
 
 if __name__ == "__main__":
     returns = param.check(parameters)

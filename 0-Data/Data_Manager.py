@@ -416,8 +416,8 @@ def generate_exp_vals(parameters):
      - exp_vals: the data generated
     '''
 
-    Dt = parameters['Dt']
     observables = parameters['observables']
+    Dt = parameters['T']/observables
     num_timesteps = int(observables/2)
     sv = parameters['sv']
     H,_ = create_hamiltonian(parameters)
@@ -427,44 +427,56 @@ def generate_exp_vals(parameters):
         spectrum.append(np.abs(sv.conj().T@vecs[:,i])**2)
     
     all_exp_vals = {}
-    if check_contains_linear(parameters['algorithms']):
-        all_exp_vals['linear'] = []
+    if check_contains_linear(parameters['algorithms'], parameters['const_obs']):
+        all_exp_vals['linear'] = {}
     if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
-        all_exp_vals['sparse'] = []
+        all_exp_vals['sparse'] = {}
     if 'VQPE' in parameters['algorithms']:
-        all_exp_vals['vqpets'] = []
+        all_exp_vals['vqpets'] = {}
     if 'QMEGS' in parameters['algorithms']:
-        all_exp_vals['gausts'] = []
+        all_exp_vals['gausts'] = {}
     
-    if 'linear' in all_exp_vals:
-        exp_vals = []
-        for i in range(num_timesteps):
-            exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
-        all_exp_vals['linear'].append(exp_vals)
-    if 'sparse' in all_exp_vals:
-        exp_vals = {}
-        iteration = 0
-        time_steps_per_itr = parameters['ML_QCELS_time_steps']
-        while len(exp_vals) < num_timesteps:
-            for i in range(time_steps_per_itr):
-                time = 2**iteration*i
-                if time in exp_vals: continue
-                exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
-            iteration+=1
-        all_exp_vals['sparse'].append(exp_vals)
-    if 'vqpets' in all_exp_vals:
-        exp_vals = []
-        length = num_timesteps
-        if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
-        for i in range(length):
-            exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
-        all_exp_vals['vqpets'].append(exp_vals)
-    if 'gausts' in all_exp_vals:
-        exp_vals = {}
-        times = generate_ts_distribution(parameters['QMEGS_T'],num_timesteps,parameters['QMEGS_sigma'])
-        for t in times:
-            exp_vals[t] = np.sum(np.array(spectrum)*np.exp(-1j*E*t))
-        all_exp_vals['gausts'].append(exp_vals)
+    final_times = parameters['final_times']    
+    for i in range(len(final_times)):
+        T = final_times[i]
+        if check_contains_linear(parameters['algorithms'], parameters['const_obs']):
+            all_exp_vals['linear'][T] = []
+        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+            all_exp_vals['sparse'][T] = []
+        if 'VQPE' in parameters['algorithms']:
+            all_exp_vals['vqpets'][T] = []
+        if 'QMEGS' in parameters['algorithms']:
+            all_exp_vals['gausts'][T] = []
+        if 'linear' in all_exp_vals:
+            exp_vals = []
+            for i in range(num_timesteps):
+                exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
+            all_exp_vals['linear'][T].append(exp_vals)
+        if 'sparse' in all_exp_vals:
+            exp_vals = {}
+            iteration = 0
+            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+            while len(exp_vals) < num_timesteps:
+                for i in range(time_steps_per_itr):
+                    time = 2**iteration*i
+                    if time in exp_vals: continue
+                    exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
+                iteration+=1
+            all_exp_vals['sparse'][T].append(exp_vals)
+        if 'vqpets' in all_exp_vals:
+            exp_vals = []
+            length = num_timesteps
+            if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
+            for i in range(length):
+                exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
+            all_exp_vals['vqpets'][T].append(exp_vals)
+        if 'gausts' in all_exp_vals:
+            exp_vals = {}
+            times = generate_ts_distribution(parameters['T'],num_timesteps,parameters['QMEGS_sigma'])
+            # print(times)
+            for t in times:
+                exp_vals[t] = np.sum(np.array(spectrum)*np.exp(-1j*E*t))
+            all_exp_vals['gausts'][T].append(exp_vals)
 
     return all_exp_vals
 
@@ -567,11 +579,11 @@ def run(parameters, returns):
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
 
     used_time_series = []
-    if check_contains_linear(parameters['algorithms']): used_time_series.append('linear')
+    if check_contains_linear(parameters['algorithms'], parameters['const_obs']): used_time_series.append('linear')
     if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
     if 'QMEGS' in parameters['algorithms']:
         used_time_series.append('gausts')
-        gauss_distributed_ts = generate_ts_distribution(parameters['QMEGS_T'],parameters['observables'],parameters['QMEGS_sigma'])
+        gauss_distributed_ts = generate_ts_distribution(parameters['T'],parameters['observables'],parameters['QMEGS_sigma'])
     if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
 
     
@@ -579,7 +591,7 @@ def run(parameters, returns):
         try: os.mkdir('0-Data/Transpiled_Circuits')
         except: pass
 
-        Dt = parameters['Dt']
+        Dt = parameters['T']/parameters['observables']
         for time_series_name in used_time_series:
             if time_series_name == 'vqpets':
                 pauli_strings = parameters['pauli_strings']
@@ -631,7 +643,7 @@ def run(parameters, returns):
     # load/generate exp_vals data
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         trans_qcs = []
-        Dt = parameters['Dt']
+        Dt = parameters['T']/parameters['observables']
         for run in range(reruns):
             print('Run', run+1)
             for time_series_name in used_time_series:
@@ -785,11 +797,12 @@ def run(parameters, returns):
     # save expectation values
     try: os.mkdir('0-Data/Expectation_Values')
     except: pass
-    for key in all_exp_vals.keys():
-        filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=key)+'.pkl'
-        with open(filename, 'wb') as file:
-            pickle.dump(all_exp_vals[key], file)
-        print('Saved expectation values into file.', '('+filename+')')
+    for dataset_name in all_exp_vals.keys():
+        for T in all_exp_vals[dataset_name].keys():
+            filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=dataset_name, T=T)+'.pkl'
+            with open(filename, 'wb') as file:
+                pickle.dump(all_exp_vals[dataset_name][T], file)
+            print('Saved expectation values into file.', '('+filename+')')
     
 
 def calc_all_exp_vals(results, shots):

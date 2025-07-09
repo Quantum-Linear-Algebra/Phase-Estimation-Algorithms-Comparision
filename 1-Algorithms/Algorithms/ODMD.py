@@ -74,6 +74,11 @@ def fourier_filter_exp_vals(exp_vals, gamma_range, filters):
         filtered_exp_vals.append(new_exp_vals)
     return filtered_exp_vals
 
+def odmd(s_ks, Dt, svd_threshodl, precision=0, full_observable=True, fourier_filter=False, fourier_params={}):
+    if len(s_ks[0]) == 0: return 0
+    temp = make_hankel(s_ks) # [:,:k+1]
+    return
+
 def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=True, fourier_filter=False, fourier_params={}, show_steps = False, skipping = 1):
     '''
     Preform the ODMD calculation.
@@ -133,8 +138,8 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)
         if precision!=0 and check_convergence(est_E_0s, precision): break
-        obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping)]
-        if full_observable: obs = [i*2 for i in obs]
+    obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping)]
+    if full_observable: obs = [i*2 for i in obs]
     return est_E_0s, obs
 
 

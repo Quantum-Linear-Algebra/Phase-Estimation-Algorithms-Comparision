@@ -14,17 +14,22 @@ from Parameters import make_filename, check_contains_linear
 from Data_Manager import create_hamiltonian
 from ODMD import fourier_filter_exp_vals
 
-def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
+def run(parameters, max_itr=-1, skipping=1, show_std=False):
     print('\nGenerating Graphs')
     # setup relavant variables
     reruns = parameters['reruns']
     
-    contains_linear = check_contains_linear(parameters['algorithms'])
+    contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
     fourier_filtering = 'FODMD' in parameters['algorithms']
+    Dt = parameters['T']/parameters['observables']
     if 'overlap' in parameters:
         spectrum_string = 'overlap='+str(parameters['overlap'])
     elif 'distribution' in parameters:
-        spectrum_string = 'distribution='+str(parameters['distribution'])
+        spectrum_string = 'distribution='
+        for i in parameters['distribution'][:3][:-1]:
+            spectrum_string+=f'{i:0.2},'
+        var = parameters['distribution'][3]
+        spectrum_string +=f'{var:0.2}...'
     if fourier_filtering:
         gamma_range = parameters['FODMD_gamma_range']
         filters = parameters['FODMD_filter_count']
@@ -75,8 +80,10 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     # create related graphs
     plt.figure()
     plt.title('Overlap')
-    plt.bar(range(len(vecs)),[np.abs(sv@vecs[i])**2 for i in range(len(vecs))], width=.6)
-    plt.xticks(range(len(vecs)), [f'{i:.5}' for i in E], rotation=90)
+    vecs_num = len(vecs)
+    if vecs_num > 16: vecs_num = 16
+    plt.bar(range(vecs_num),[np.abs(sv@vecs[i])**2 for i in range(vecs_num)], width=.6)
+    plt.xticks(range(vecs_num), [f'{i:.5}' for i in E[:vecs_num]], rotation=90)
     plt.xlabel('Energy value of eigenstate', labelpad=10)
     plt.ylabel('Overlap with input state')
     plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
@@ -89,15 +96,15 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
         for i in range(reruns):
             exp_vals = all_exp_vals[i]
             avg_exp_vals += exp_vals
-            plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in exp_vals], alpha = alpha, c = 'orange')
-            plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in exp_vals], alpha = alpha, c = 'blue')
+            plt.plot([i*Dt for i in range(len(exp_vals))], [i.real for i in exp_vals], alpha = alpha, c = 'orange')
+            plt.plot([i*Dt for i in range(len(exp_vals))], [i.imag for i in exp_vals], alpha = alpha, c = 'blue')
         avg_exp_vals /= reruns
-        plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.real for i in avg_exp_vals], c = 'orange', label = 'Real')
-        plt.plot([i*parameters['Dt'] for i in range(len(exp_vals))], [i.imag for i in avg_exp_vals], c = 'blue', label = 'Imaginary')
+        plt.plot([i*Dt for i in range(len(exp_vals))], [i.real for i in avg_exp_vals], c = 'orange', label = 'Real')
+        plt.plot([i*Dt for i in range(len(exp_vals))], [i.imag for i in avg_exp_vals], c = 'blue', label = 'Imaginary')
         plt.legend()
         plt.xlabel('Time')
         plt.ylabel('Expectation Value')
-        plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' with '+spectrum_string)
+        plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
         plt.show()
         
@@ -105,12 +112,12 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
         plt.figure()
         for i in range(reruns):
             exp_vals = all_exp_vals[i]
-            plt.plot(fftshift(fftfreq(len(exp_vals), d=parameters['Dt'])), abs(fftshift(fft(exp_vals))), c = 'purple', alpha = alpha)
-        plt.plot(fftshift(fftfreq(len(avg_exp_vals), d=parameters['Dt'])), abs(fftshift(fft(avg_exp_vals))), c = 'purple', label = 'FFT')
+            plt.plot(fftshift(fftfreq(len(exp_vals), d=Dt)), abs(fftshift(fft(exp_vals))), c = 'purple', alpha = alpha)
+        plt.plot(fftshift(fftfreq(len(avg_exp_vals), d=Dt)), abs(fftshift(fft(avg_exp_vals))), c = 'purple', label = 'FFT')
         plt.legend()
         plt.xlabel('Frequency')
         plt.ylabel('Amplitude')
-        plt.title('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' with '+spectrum_string)
+        plt.title('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
         plt.show()
 
@@ -121,12 +128,12 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
                 ff_exp_vals = fourier_filter_exp_vals(all_exp_vals[i], gamma_range, filters)
                 for j in range(len(ff_exp_vals)):
                     single_ff_exp_vals = ff_exp_vals[j]
-                    plt.plot(gammas[j], [i*parameters['Dt'] for i in range(len(single_ff_exp_vals))], [i.real for i in single_ff_exp_vals], alpha = alpha, c = 'orange')
-                    plt.plot(gammas[j], [i*parameters['Dt'] for i in range(len(single_ff_exp_vals))], [i.imag for i in single_ff_exp_vals], alpha = alpha, c = 'blue')
+                    plt.plot(gammas[j], [i*Dt for i in range(len(single_ff_exp_vals))], [i.real for i in single_ff_exp_vals], alpha = alpha, c = 'orange')
+                    plt.plot(gammas[j], [i*Dt for i in range(len(single_ff_exp_vals))], [i.imag for i in single_ff_exp_vals], alpha = alpha, c = 'blue')
             plt.ylabel('Time')
             ax.set_zlabel('Expectation Value')
             plt.xlabel('gamma')
-            plt.title('Expectation Value with Dt='+str(parameters['Dt'])+' with '+spectrum_string)
+            plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
             plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Expectation_Value.png')
             plt.show()
             
@@ -141,10 +148,10 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
                 for j in range(len(ff_exp_vals)):
                     single_ff_exp_vals = ff_exp_vals[j]
                     axs[j//5][j%5].set_title('gamma = '+str(gammas[j]))
-                    axs[j//5][j%5].plot(fftshift(fftfreq(len(single_ff_exp_vals), d=parameters['Dt'])), abs(fftshift(fft(single_ff_exp_vals))))
+                    axs[j//5][j%5].plot(fftshift(fftfreq(len(single_ff_exp_vals), d=Dt)), abs(fftshift(fft(single_ff_exp_vals))))
                     if j//5==0: axs[j//5][j%5].set_ylabel('Amplitute')
                     axs[j//5][j%5].set_xlabel('Frequency')
-            fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(parameters['Dt'])+' with '+spectrum_string)
+            fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
             fig.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
             fig.show()
     
@@ -155,9 +162,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
         xs = []
         for i in range(len(all_est_E_0s)):
             observables = all_observables[i][0]
-            if use_shots: total_shots = [w*parameters['shots'] for w in observables]
-            if use_shots: x=total_shots 
-            else: x=observables
+            total_shots = [w*parameters['shots'] for w in observables]
+            x=total_shots
             xs.append(x)
         
         longest_x = 0
@@ -198,12 +204,13 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
         if max_itr != -1: plt.xlim([0, max_itr])
         plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
         plt.ylabel('Absolute Error')
-        if use_shots: plt.xlabel('Total Shots')
-        else: plt.xlabel('Number of Observables')
+        plt.xlabel('Total Queries ('+str(parameters['shots'])+' per circuit)')
+        # plt.xlabel('T')
         plt.legend()
         # plt.xlim([0,10])
         # plt.ylim([0,0.00001])
         plt.yscale('log')
+        # plt.xscale('log')
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
         plt.show()
 
@@ -235,10 +242,11 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
         eigs = np.linalg.eigvals(H)
         eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
         for i in range(len(eigs)):
-            plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label = 'E'+str(i))
+            if i<3: label = 'E'+str(i)
+            else: label = ''
+            plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label=label)
         if max_itr != -1: plt.xlim([0, max_itr])
-        if use_shots: plt.xlabel('Total Shots')
-        else: plt.xlabel('Number of Observables')
+        plt.xlabel('Total Queries ('+str(parameters['shots'])+' per circuit)')
         plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
         # dis = (eigs[2]-eigs[0])/2
         # plt.ylim(eigs[0]-dis, eigs[2]+dis)
@@ -251,7 +259,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False, use_shots=False):
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
-    contains_linear = check_contains_linear(parameters['algorithms'])
+    contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
     
     exit_code = os.system('rm -rf Recent_Graphs')
     assert(exit_code == 0)
