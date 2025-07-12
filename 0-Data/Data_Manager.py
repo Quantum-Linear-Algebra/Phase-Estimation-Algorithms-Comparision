@@ -252,37 +252,37 @@ def create_hamiltonian(parameters, scale=True, show_steps=False):
             print("Lowest energy eigenvalue", min_eigenvalue); print()
     return H, real_E_0
 
-def run_hadamard_test(controlled_U, statevector, W = 'Re', shots=100):
+def run_hadamard_tests(controlled_U, statevector, W = 'Re', shots=100):
     '''
-    Run a transpiled hadamard test quantum circuit.
+    Run a transpiled hadamard tests quantum circuit.
 
     Parameters:
      - controlled_U: the control operation to check phase of
      - statevector: a vector to initalize the statevector of
                     eigenqubits
-     - W: what type of hadamard test to use (Re or Im)
-     - shots: the number of shots to run the test with 
+     - W: what type of hadamard tests to use (Re or Im)
+     - shots: the number of shots to run the tests with 
 
     Returns:
      - re: the real part of expection value measured
     '''
 
     aer_sim = AerSimulator(noise_model=NoiseModel())
-    trans_qc = create_hadamard_test(aer_sim, controlled_U, statevector, W = W)
+    trans_qc = create_hadamard_tests(aer_sim, controlled_U, statevector, W = W)
     counts = aer_sim.run(trans_qc, shots = shots).result().get_counts()
     exp_val = calculate_exp_vals(counts, shots)
     return exp_val
 
-def create_hadamard_test(backend, controlled_U, statevector, W = 'Re'):
+def create_hadamard_tests(backend, controlled_U, statevector, W = 'Re'):
     '''
-    Creates a transpiled hadamard test for the specificed backend.
+    Creates a transpiled hadamard tests for the specificed backend.
 
     Parameters:
      - backend: the backend to transpile the circuit on
      - controlled_U: the control operation to check phase of
      - statevector: a vector to initalize the statevector of
                     eigenqubits
-     - W: what type of hadamard test to use (Re or Im)
+     - W: what type of hadamard tests to use (Re or Im)
     
     Returns:
      - trans_qc: the transpiled circuit
@@ -306,11 +306,11 @@ def calculate_exp_vals(counts, shots):
     '''
     Calculates the real or imaginary of the expectation
     value depending on if the counts provided are from
-    the real or the imaginary Hadamard test.
+    the real or the imaginary Hadamard tests.
 
     Parameters:
      - counts: the count object returned from result
-     - shots: the number of shots to run the test with 
+     - shots: the number of shots to run the tests with 
 
     Returns:
      - meas: the desired expection value
@@ -341,13 +341,13 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string='', gauss=[]):
+def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', gauss=[]):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
 
     Parameters:
-     - Dt: the time step
+     - T: the final time
      - parameters: the parmeters for the
                    hamiltonian contruction
     
@@ -375,10 +375,11 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string='', 
                 time_steps.add(time)
             iteration+=1
         time_steps = np.sort(list(time_steps))
+        time_steps = [i*T/time_steps[-1] for i in time_steps]
     elif QMEGS:
         time_steps = gauss
     else:
-        time_steps = range(num_timesteps)
+        time_steps = [i*T/parameters['observables'] for i in range(num_timesteps)]
     
     gates = []
     if use_F3C:
@@ -389,14 +390,14 @@ def hadamard_test_circuit_info(Dt, parameters, ML_QCELS=False, pauli_string='', 
         trotter = parameters['trotter']
         if unordered_time_series:
             for time_step in time_steps:
-                gates.append(generate_TFIM_gates(sites, 1, time_step*Dt, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
+                gates.append(generate_TFIM_gates(sites, 1, time_step, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
         else:
-            gates = generate_TFIM_gates(sites, num_timesteps, Dt, g, scaling, coupling, trotter, '../f3cpp')
+            gates = generate_TFIM_gates(sites, num_timesteps, T/parameters['observables'], g, scaling, coupling, trotter, '../f3cpp')
     else:
         ham,_ = create_hamiltonian(parameters)
         gates = []
         for i in time_steps:
-            mat = closest_exp_unitary(ham,Dt*i)
+            mat = closest_exp_unitary(ham,i)
             if VQPE:
                 pauli = Pauli(pauli_string).to_matrix()
                 mat = pauli@mat
@@ -480,12 +481,12 @@ def generate_exp_vals(parameters):
 
     return all_exp_vals
 
-def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False, pauli_string='', gauss = []):
+def transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=False, pauli_string='', gauss = []):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
     Parameters:
-     - Dt: the time step
+     - T: the final evolution time
      - backend: the backend to transpile on
      - parameters: the parmeters for the hamiltonian
                    contruction
@@ -495,9 +496,9 @@ def transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=False, pa
     '''
 
     tqcs = []
-    gates, statevector = hadamard_test_circuit_info(Dt, parameters, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
+    gates, statevector = hadamard_tests_circuit_info(parameters, T, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
     for controlled_U in gates:
-        tqcs.append(create_hadamard_test(backend, controlled_U, statevector, W=W))
+        tqcs.append(create_hadamard_tests(backend, controlled_U, statevector, W=W))
     return tqcs
 
 def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location, include_0 = True):
@@ -580,10 +581,12 @@ def run(parameters, returns):
 
     used_time_series = []
     if check_contains_linear(parameters['algorithms'], parameters['const_obs']): used_time_series.append('linear')
-    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
+    if 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
     if 'QMEGS' in parameters['algorithms']:
         used_time_series.append('gausts')
-        gauss_distributed_ts = generate_ts_distribution(parameters['T'],parameters['observables'],parameters['QMEGS_sigma'])
+        gauss_distributed_ts = {}
+        for T in parameters['final_times']:
+            gauss_distributed_ts[T] = generate_ts_distribution(parameters['T'],parameters['observables'],parameters['QMEGS_sigma'])
     if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
 
     
@@ -591,87 +594,91 @@ def run(parameters, returns):
         try: os.mkdir('0-Data/Transpiled_Circuits')
         except: pass
 
-        Dt = parameters['T']/parameters['observables']
-        for time_series_name in used_time_series:
-            if time_series_name == 'vqpets':
-                pauli_strings = parameters['pauli_strings']
-                name = make_filename(parameters)
-                for pauli_string in pauli_strings.paulis:
-                    pauli_string = str(pauli_string)
-                    filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
-                    if empty(filename):
-                        print('Creating file for '+pauli_string+' Real Hadamard test with Dt =', Dt)
-                        trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Real', pauli_string=pauli_string)
-                        with open(filename, 'wb') as file:
-                            qpy.dump(trans_qcs, file)
-                    else:
-                        print('File found for '+pauli_string+' Imaginary Hadamard test with Dt =', Dt)
-                    filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
-                    if empty(filename):
-                        print('Creating file for '+pauli_string+' Imaginary Hadamard test with Dt =', Dt)
-                        trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', pauli_string=pauli_string)
-                        with open(filename, 'wb') as file:
-                            qpy.dump(trans_qcs, file)
-                    else:
-                        print('File found for '+pauli_string+' Imaginary Hadamard test with Dt =', Dt)
-            else:
-                name = make_filename(parameters, key=time_series_name)
-                
-                if time_series_name == 'sparse': ML_QCELS=True
-                else: ML_QCELS = False
-                if time_series_name == 'gausts': gauss = gauss_distributed_ts
-                else: gauss = []
+        for T in parameters['final_times']:
+            print('T =', T)
+            for time_series_name in used_time_series:
+                if time_series_name == 'vqpets':
+                    pauli_strings = parameters['pauli_strings']
+                    name = make_filename(parameters, T=T)
+                    for pauli_string in pauli_strings.paulis:
+                        pauli_string = str(pauli_string)
+                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
+                        if empty(filename):
+                            print('  Creating file for '+pauli_string+' Real Hadamard tests with observables =', parameters['observables'])
+                            trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Real', pauli_string=pauli_string)
+                            with open(filename, 'wb') as file:
+                                qpy.dump(trans_qcs, file)
+                        else:
+                            print('File found for '+pauli_string+' Imaginary Hadamard tests with observables =', parameters['observables'])
+                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
+                        if empty(filename):
+                            print('  Creating file for '+pauli_string+' Imaginary Hadamard test s with observables =', parameters['observables'])
+                            trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Im', pauli_string=pauli_string)
+                            with open(filename, 'wb') as file:
+                                qpy.dump(trans_qcs, file)
+                        else:
+                            print('File found for '+pauli_string+' Imaginary Hadamard tests with  observables =', parameters['observables'])
+                else:
+                    name = make_filename(parameters, key=time_series_name, T=T)
+                    
+                    if time_series_name == 'sparse': ML_QCELS=True
+                    else: ML_QCELS = False
+                    if time_series_name == 'gausts': gauss = gauss_distributed_ts[T]
+                    else: gauss = []
 
-                filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
-                if empty(filename):
-                    print('Creating file for '+time_series_name+' Real Hadamard test with Dt =', Dt)
-                    trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Re', ML_QCELS=ML_QCELS, gauss=gauss)
-                    with open(filename, 'wb') as file:
-                        qpy.dump(trans_qcs, file)
-                else:
-                    print('File found for '+time_series_name+' Real Hadamard test with Dt =', Dt)
-                filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
-                if empty(filename):
-                    print('Creating file for '+time_series_name+' Imaginary Hadamard test with Dt =', Dt)
-                    trans_qcs = transpile_hadamard_tests(parameters, Dt, backend, W='Im', ML_QCELS=ML_QCELS, gauss=gauss)
-                    with open(filename, 'wb') as file:
-                        qpy.dump(trans_qcs, file)
-                else:
-                    print('File found for Linear Imaginary Hadamard test with Dt =', Dt)
+                    filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
+                    if empty(filename):
+                        print('  Creating file for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
+                        trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=ML_QCELS, gauss=gauss)
+                        with open(filename, 'wb') as file:
+                            qpy.dump(trans_qcs, file)
+                    else:
+                        print('File found for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
+                    filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
+                    if empty(filename):
+                        print('  Creating file for '+time_series_name+' Imaginary Hadamard tests with observables =', parameters['observables'])
+                        trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Im', ML_QCELS=ML_QCELS, gauss=gauss)
+                        with open(filename, 'wb') as file:
+                            qpy.dump(trans_qcs, file)
+                    else:
+                        print('File found for Linear Imaginary Hadamard tests with observables =', parameters['observables'])
         print()
 
     # load/generate exp_vals data
     if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
         trans_qcs = []
-        Dt = parameters['T']/parameters['observables']
-        for run in range(reruns):
-            print('Run', run+1)
-            for time_series_name in used_time_series:
-                if time_series_name == 'vqpets':
-                    for pauli_string in pauli_strings.paulis:
-                        pauli_string = str(pauli_string)
-                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+make_filename(parameters)+'_Re.qpy'
-                        print('  Loading data from file for '+pauli_string+' Real Hadamard Tests.')
+        # Dt = parameters['T']/parameters['observables']
+        for T in parameters['final_times']:
+            print('T =', T)
+            for run in range(reruns):
+                print('  Run', run+1)
+                for time_series_name in used_time_series:
+                    if time_series_name == 'vqpets':
+                        for pauli_string in pauli_strings.paulis:
+                            pauli_string = str(pauli_string)
+                            name = make_filename(parameters, T=T)
+                            filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
+                            print('      Loading data from file for '+pauli_string+' Real Hadamard tests.')
+                            with open(filename, 'rb') as file:
+                                qcs = qpy.load(file)
+                                trans_qcs.append(qcs)
+                            filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
+                            print('      Loading data from file for '+pauli_string+' Imaginary Hadamard tests.')
+                            with open(filename, 'rb') as file:
+                                qcs = qpy.load(file)
+                                trans_qcs.append(qcs)
+                    else:
+                        print('      Loading data from file for '+time_series_name+' Real Hadamard tests.')
+                        name = make_filename(parameters, key=time_series_name, T=T)
+                        filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
                         with open(filename, 'rb') as file:
                             qcs = qpy.load(file)
                             trans_qcs.append(qcs)
-                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+make_filename(parameters)+'_Im.qpy'
-                        print('  Loading data from file for '+pauli_string+' Imaginary Hadamard Tests.')
+                        print('      Loading data from file for '+time_series_name+' Imaginary Hadamard tests.')
+                        filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
                         with open(filename, 'rb') as file:
                             qcs = qpy.load(file)
                             trans_qcs.append(qcs)
-                else:
-                    print('  Loading data from file for '+time_series_name+' Real Hadamard Tests.')
-                    name = make_filename(parameters, key=time_series_name)
-                    filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
-                    with open(filename, 'rb') as file:
-                        qcs = qpy.load(file)
-                        trans_qcs.append(qcs)
-                    print('  Loading data from file for '+time_series_name+' Imaginary Hadamard Tests.')
-                    filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
-                    with open(filename, 'rb') as file:
-                        qcs = qpy.load(file)
-                        trans_qcs.append(qcs)
         print()
         trans_qcs = sum(trans_qcs, []) # flatten list
         sampler = Sampler(backend)
@@ -741,64 +748,75 @@ def run(parameters, returns):
         observables = parameters['observables']
         num_timesteps = int(observables/2)
         shots = parameters['shots']
-        for r in range(reruns):
-            print('Run', r+1)
-            print('  Calculating the expectation values from circuit data.')
-            for i in range(len(used_time_series)):
-                if 'VQPE' in parameters['algorithms']:
-                    if parameters['const_obs']:
-                        if parameters['algorithms'] == ['VQPE']:
-                            index = i*observables//((len(pauli_strings)+1))+r*observables
+        
+        print('Starting expecation value Calculation for', len(results), 'circuit results.')
+        
+        
+        for i in range(len(used_time_series)):
+            all_exp_vals[used_time_series[i]] = {}
+            for t_index in range(len(parameters['final_times'])):
+                T = parameters['final_times'][t_index]
+                all_exp_vals[used_time_series[i]][T] = []
+                for r in range(reruns):
+                    if 'VQPE' in parameters['algorithms']:
+                        if parameters['const_obs']:
+                            if parameters['algorithms'] == ['VQPE']:
+                                index = i*observables//((len(pauli_strings)+1))+r*observables
+                            else:
+                                index = i*observables
+                                # adjusts the index to account for the fact that the VQPE time series data is slightly shorter
+                                index += (r+t_index*reruns)*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
                         else:
-                            # last term adjusts the index to account for the fact that the VQPE time series data is slightly shorter
-                            index = i*observables + r*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
+                            index = (i+(r+t_index*reruns)*(len(used_time_series)+len(pauli_strings)-1))*observables
                     else:
-                        index = (i+r*(len(used_time_series)+len(pauli_strings)-1))*observables
-                else:
-                    index = (i+r*len(used_time_series))*observables
-                if used_time_series[i] == 'sparse':
-                    list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
-                    time_steps = set()
-                    iteration = 0
-                    time_steps_per_itr = parameters['ML_QCELS_time_steps']
-                    while len(time_steps) < num_timesteps:
-                        for j in range(time_steps_per_itr):
-                            time = 2**iteration*j
-                            if time in time_steps: continue
-                            time_steps.add(time)
-                        iteration+=1
-                    time_steps = np.sort(list(time_steps))
-                    exp_vals = {}
-                    for j in range(len(time_steps)):
-                        exp_vals[time_steps[j]] = list_exp_vals[j]
-                    all_exp_vals['sparse'].append(exp_vals)
-                elif used_time_series[i] == 'vqpets':
-                    pauli_strings = parameters['pauli_strings']
-                    if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
-                    else: vqpe_obs = observables
-                    Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
-                    for p in range(len(pauli_strings)):
-                        start = index+p*vqpe_obs
-                        pauli_string = pauli_strings.paulis[p]
-                        coeff = pauli_strings.coeffs[p]
-                        exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
-                        Hexp_vals += [k*coeff for k in exp_vals]
-                    all_exp_vals['vqpets'].append(Hexp_vals)
-                elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
-                    all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots))
-                elif used_time_series[i] == 'gausts':
-                    exp_vals = {}
-                    results = calc_all_exp_vals(results[index:index+observables], shots)
-                    for j in range(len(results)):
-                        exp_vals[gauss_distributed_ts[j]] = results[j]
-                    all_exp_vals[used_time_series[i]].append(exp_vals)
-                else: all_exp_vals[used_time_series[i]].append(calc_all_exp_vals(results[index:index+observables], shots))
+                        index = (i+r*len(used_time_series)+t_index*reruns*len(used_time_series))*observables
+                    print('Calculating expectation values for ',used_time_series[i], 'for run' ,str(r+1)+'/'+str(reruns),'for time T =', str(parameters['final_times'][t_index])+'.')
+                    if used_time_series[i] == 'sparse':
+                        list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
+                        time_steps = set()
+                        iteration = 0
+                        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+                        while len(time_steps) < num_timesteps:
+                            for j in range(time_steps_per_itr):
+                                time = 2**iteration*j
+                                if time in time_steps: continue
+                                time_steps.add(time)
+                            iteration+=1
+                        time_steps = np.sort(list(time_steps))
+                        exp_vals = {}
+                        for j in range(len(time_steps)):
+                            exp_vals[time_steps[j]] = list_exp_vals[j]
+                    elif used_time_series[i] == 'vqpets':
+                        pauli_strings = parameters['pauli_strings']
+                        if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
+                        else: vqpe_obs = observables
+                        Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
+                        for p in range(len(pauli_strings)):
+                            start = index+p*vqpe_obs
+                            pauli_string = pauli_strings.paulis[p]
+                            coeff = pauli_strings.coeffs[p]
+                            exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
+                            Hexp_vals += [k*coeff for k in exp_vals]
+                        exp_vals = Hexp_vals
+                    elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
+                        exp_vals = calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots)
+                    elif used_time_series[i] == 'gausts':
+                        exp_vals = {}
+                        tmp = calc_all_exp_vals(results[index:index+observables], shots)
+                        # print(len(results[index:index+observables]), tmp)
+                        for j in range(len(tmp)):
+                            exp_vals[gauss_distributed_ts[T][j]] = tmp[j]
+                    else:
+                        exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
+                    
+                    all_exp_vals[used_time_series[i]][T].append(exp_vals)
+    print()
 
     # save expectation values
     try: os.mkdir('0-Data/Expectation_Values')
     except: pass
     for dataset_name in all_exp_vals.keys():
-        for T in all_exp_vals[dataset_name].keys():
+        for T in parameters['final_times']:
             filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=dataset_name, T=T)+'.pkl'
             with open(filename, 'wb') as file:
                 pickle.dump(all_exp_vals[dataset_name][T], file)

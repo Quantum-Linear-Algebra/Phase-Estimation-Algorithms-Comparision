@@ -44,8 +44,6 @@ def check(parameters):
         assert(parameters['T']>0)
         if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
         if 'reruns' not in parameters: parameters['reruns'] = 1
-        else:
-            parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
             used_variables.append('g')
             if parameters['comp_type'] != 'C':
@@ -132,17 +130,16 @@ def check(parameters):
         used_variables.append('ML_QCELS_time_steps')
         if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
         # adjust the observables so that all algorithms match ML_QCELS's observables
-        if parameters['const_obs']:
-            iteration = 0
-            time_steps_per_itr = parameters['ML_QCELS_time_steps']
-            exp_vals = set()
-            while len(exp_vals) < parameters['observables']/2:
-                for i in range(time_steps_per_itr):
-                    time = 2**iteration*i
-                    if time in exp_vals: continue
-                    exp_vals.add(time)
-                iteration+=1
-            parameters['observables'] = len(exp_vals)*2
+        iteration = 0
+        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        exp_vals = set()
+        while len(exp_vals) < parameters['observables']/2:
+            for i in range(time_steps_per_itr):
+                time = 2**iteration*i
+                if time in exp_vals: continue
+                exp_vals.add(time)
+            iteration+=1
+        parameters['observables'] = len(exp_vals)*2
         if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
             delta = 1*sqrt(1-parameters['overlap'])
             parameters['T'] = parameters['observables']*delta/parameters['ML_QCELS_time_steps']

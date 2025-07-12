@@ -22,6 +22,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
     contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
     fourier_filtering = 'FODMD' in parameters['algorithms']
     Dt = parameters['T']/parameters['observables']
+
     if 'overlap' in parameters:
         spectrum_string = 'overlap='+str(parameters['overlap'])
     elif 'distribution' in parameters:
@@ -30,10 +31,12 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             spectrum_string+=f'{i:0.2},'
         var = parameters['distribution'][3]
         spectrum_string +=f'{var:0.2}...'
+    
     if fourier_filtering:
         gamma_range = parameters['FODMD_gamma_range']
         filters = parameters['FODMD_filter_count']
         gammas = np.linspace(gamma_range[0], gamma_range[1], filters)
+    
     # get related data
     filename = make_filename(parameters, add_shots=True)+'.pkl'
     try: os.mkdir('2-Graphing/Graphs')
@@ -46,36 +49,41 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             print(e)
             print("Failed to grab expectation value data. Try generating the dataset."); sys.exit(0)
 
-    all_est_E_0s = []
-    all_observables = []
-    for algo in parameters['algorithms']:    
-        try:
-            with open('1-Algorithms/Results/'+algo+'_'+filename, 'rb') as file:
-                [algo_observables, algo_est_E_0s] = pickle.load(file)
-            all_est_E_0s.append(algo_est_E_0s)
-            all_observables.append(algo_observables)
-        except Exception as e:
-            print(e)
-            print('Failed to grab energy estimates for '+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
     
+
+    all_observables = {}
+    all_est_E_0s = {}
+    for algo in parameters['algorithms']:    
+        all_observables[algo] = {}
+        all_est_E_0s[algo] = {}
+        for T in parameters['final_times']:
+            try:
+                with open('1-Algorithms/Results/'+algo+'_'+make_filename(parameters, add_shots=True, T=T)+'.pkl', 'rb') as file:
+                    [algo_observables, algo_est_E_0s] = pickle.load(file)
+                all_observables[algo][T] = algo_observables
+                all_est_E_0s[algo][T] = algo_est_E_0s
+            except Exception as e:
+                print(e)
+                print('Failed to grab energy estimates for '+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
+
     H,real_E_0 = create_hamiltonian(parameters)
     E,vecs = eigh(H)
     # real_E_0 = E[0]
     vecs = [vecs[:,i] for i in range(len(vecs))]
     sv = parameters['sv']
 
-    # check lengths of data
-    if contains_linear:
-        if reruns > len(all_exp_vals):
-            print('Number of linear time series is too small. Reducing reruns.')
-            reruns=len(all_exp_vals)
-    for i in range(len(parameters['algorithms'])):
-        if reruns > len(all_est_E_0s[i]):
-            print('Number of ground state estimations is too small for '+parameters['algorithms'][i]+'. Reducing reruns.')
-            reruns=len(all_est_E_0s[i])
-        if reruns > len(all_observables[i]):
-            print('Number of observables is too small for '+parameters['algorithms'][i]+'. Reducing reruns.')
-            reruns=len(all_observables[i]) 
+    # # check lengths of data
+    # if contains_linear:
+    #     if reruns > len(all_exp_vals):
+    #         print('Number of linear time series is too small. Reducing reruns.')
+    #         reruns=len(all_exp_vals)
+    # for algo in parameters['algorithms']:
+    #     if reruns > len(all_est_E_0s[algo]):
+    #         print('Number of ground state estimations is too small for '+algo+'. Reducing reruns.')
+    #         reruns=len(all_est_E_0s[algo])
+    #     if reruns > len(all_observables[algo]):
+    #         print('Number of observables is too small for '+algo+'. Reducing reruns.')
+    #         reruns=len(all_observables[algo]) 
 
     # create related graphs
     plt.figure()
@@ -139,18 +147,18 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             
             plt.figure()
 
-            fig, axs = plt.subplots(nrows=filters//5+1, ncols=min(5, filters), figsize=(min(5, filters)*8, (filters//5+1)*5))
-            if filters == 1: axs = [axs]
+            fig, axes = plt.subplots(nrows=filters//5+1, ncols=min(5, filters), figsize=(min(5, filters)*8, (filters//5+1)*5))
+            if filters == 1: axes = [axes]
             for i in range(reruns):
                 if parameters['FODMD_full_observable']: data = all_exp_vals[i]
                 else: data = [j.real for j in all_exp_vals[i]]
                 ff_exp_vals = fourier_filter_exp_vals(data, gamma_range, filters)
                 for j in range(len(ff_exp_vals)):
                     single_ff_exp_vals = ff_exp_vals[j]
-                    axs[j//5][j%5].set_title('gamma = '+str(gammas[j]))
-                    axs[j//5][j%5].plot(fftshift(fftfreq(len(single_ff_exp_vals), d=Dt)), abs(fftshift(fft(single_ff_exp_vals))))
-                    if j//5==0: axs[j//5][j%5].set_ylabel('Amplitute')
-                    axs[j//5][j%5].set_xlabel('Frequency')
+                    axes[j//5][j%5].set_title('gamma = '+str(gammas[j]))
+                    axes[j//5][j%5].plot(fftshift(fftfreq(len(single_ff_exp_vals), d=Dt)), abs(fftshift(fft(single_ff_exp_vals))))
+                    if j//5==0: axes[j//5][j%5].set_ylabel('Amplitute')
+                    axes[j//5][j%5].set_xlabel('Frequency')
             fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
             fig.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
             fig.show()
@@ -159,92 +167,84 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         colors = {'QCELS':'red', 'ODMD':'blue', 'FODMD':'purple', 'ML_QCELS':'orange', 'UVQPE':'limegreen', 'VQPE':'darkolivegreen', 'QMEGS':'hotpink'}
         shapes = {'QCELS':'o', 'ODMD':'^', 'FODMD':'d', 'ML_QCELS':'X', 'UVQPE':'P', 'VQPE':'*', 'QMEGS':'|'}
 
-        xs = []
-        for i in range(len(all_est_E_0s)):
-            observables = all_observables[i][0]
-            total_shots = [w*parameters['shots'] for w in observables]
-            x=total_shots
-            xs.append(x)
-        
-        longest_x = 0
-        for x in xs:
-            num = x[-1]
-            if longest_x < num: longest_x = num
+        all_queries = {}
+        for algo in all_est_E_0s:
+            T = parameters['final_times'][-1]
+            observables = all_observables[algo][T][0]
+            queries = [w*parameters['shots'] for w in observables]
+            all_queries[algo] = queries
+        longest_query = 0
+        for algo in all_queries:
+            num = all_queries[algo][-1]
+            if longest_query < num: longest_query = num
         
         plt.figure()
-        avg_err = []
-        for i in range(len(all_est_E_0s)):
-            algo = parameters['algorithms'][i]
+        avg_err = {}
+        for algo in parameters['algorithms']:
             color = colors[algo]
             shape = shapes[algo]
-            x = xs[i]
-            avg_err.append(np.zeros(len(all_est_E_0s[i][0])))
-            for j in range(len(all_est_E_0s[i])):
-                est_E_0s = all_est_E_0s[i][j]
-                err = [abs(w-real_E_0) for w in est_E_0s]
-                avg_err[i] += err
-                # plt.scatter(x, err, c = color, alpha = alpha)
-            avg_err[i] /= len(all_est_E_0s[i])
-            # print(algo, x, avg_err[i])
-            plt.plot(x, avg_err[i], c = color, marker = shape, label = algo)
+            queries = all_queries[algo]
 
-        if show_std:
-            for i in range(len(all_est_E_0s)):
-                algo = parameters['algorithms'][i]
-                color = colors[algo]
-                std_err = []
-                for j in range(len(all_est_E_0s[i][0])):
-                    tmp = []
-                    for k in range(reruns):
-                        tmp.append(abs(all_est_E_0s[i][k][j] - real_E_0))
-                    std_err.append(np.std(tmp))
-                plt.fill_between(xs[i], avg_err[i] - std_err,avg_err[i] + std_err, color=color, alpha=0.2)
+            errs = []
+            for r in range(reruns):
+                est_E_0s = all_est_E_0s[algo][T][r]
+                errs.append([abs(w-real_E_0) for w in est_E_0s])
 
-        plt.plot([0,longest_x], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
+            avg_err = []
+            std_err = []
+            for j in range(len(errs[0])):
+                temp = []
+                for i in range(len(errs)):
+                    temp.append(errs[i][j])
+                avg_err.append(np.average(temp))
+                std_err.append(np.std(temp))
+
+            plt.plot(queries, avg_err, c = color, marker = shape, label = algo+' T='+str(T))
+            if show_std: plt.fill_between(all_queries[algo], np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
+
+
+        plt.plot([0,longest_query], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
         if max_itr != -1: plt.xlim([0, max_itr])
         plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
         plt.ylabel('Absolute Error')
         plt.xlabel('Total Queries ('+str(parameters['shots'])+' per circuit)')
-        # plt.xlabel('T')
         plt.legend()
-        # plt.xlim([0,10])
-        # plt.ylim([0,0.00001])
         plt.yscale('log')
-        # plt.xscale('log')
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Queries.png', bbox_inches='tight')
         plt.show()
 
         plt.figure()
-        avg_E_0s = []
-        for i in range(len(all_est_E_0s)):
-            algo = parameters['algorithms'][i]
+        avg_E_0s = {}
+        for algo in parameters['algorithms']:
             color = colors[algo]
             shape = shapes[algo]
-            avg_E_0s.append(np.zeros(len(all_est_E_0s[i][0])))
-            for j in range(len(all_est_E_0s[i])):
-                # plt.scatter(xs[i], all_est_E_0s[i][j], c = color, alpha = alpha)
-                avg_E_0s[i] += all_est_E_0s[i][j]
-            avg_E_0s[i] /= len(all_est_E_0s[i])
-            plt.plot(xs[i], avg_E_0s[i], c = color, marker = shape, label = algo)
+            queries = all_queries[algo]
+            avg_E_0s[algo] = {}
+            T = parameters['final_times'][-1]
+            avg_E_0s[algo][T] = np.zeros(len(all_est_E_0s[algo][T][0]))
+            for r in range(reruns):
+                avg_E_0s[algo][T] += all_est_E_0s[algo][T][r]
+            avg_E_0s[algo][T] /= reruns
+            plt.plot(queries, avg_E_0s[algo][T], c = color, marker = shape, label = algo+' T='+str(T))
         
         if show_std:
-            for i in range(len(all_est_E_0s)):
-                algo = parameters['algorithms'][i]
+            for algo in parameters['algorithms']:
                 color = colors[algo]
                 std_exp_vals = []
-                for j in range(len(all_est_E_0s[i][0])):
+                T = parameters['final_times'][-1]
+                for i in range(len(all_est_E_0s[algo][T][0])):
                     tmp = []
-                    for k in range(reruns):
-                        tmp.append(all_est_E_0s[i][k][j])
+                    for r in range(reruns):
+                        tmp.append(all_est_E_0s[algo][T][r][i])
                     std_exp_vals.append(np.std(tmp))
-                plt.fill_between(xs[i], avg_E_0s[i] - std_exp_vals, avg_E_0s[i] + std_exp_vals, color=color, alpha=0.2)
+                plt.fill_between(all_queries[algo], avg_E_0s[algo][T]-std_exp_vals, avg_E_0s[algo][T]+std_exp_vals, color=color, alpha=0.2)
 
         eigs = np.linalg.eigvals(H)
         eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
         for i in range(len(eigs)):
             if i<3: label = 'E'+str(i)
             else: label = ''
-            plt.plot([0,longest_x], [eigs[i],eigs[i]], ':', label=label)
+            plt.plot([0,longest_query], [eigs[i],eigs[i]], ':', label=label)
         if max_itr != -1: plt.xlim([0, max_itr])
         plt.xlabel('Total Queries ('+str(parameters['shots'])+' per circuit)')
         plt.legend(bbox_to_anchor=(1.05, 1.05), loc='upper left')
@@ -253,9 +253,44 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         # plt.ylim(eigs[0] - 0.1, eigs[0] + 0.1)
         plt.title('Convergence in Energy for '+parameters['system']+' with '+spectrum_string)
         plt.ylabel('Eigenvalue')
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence_Queries.png', bbox_inches='tight')
         plt.show()
-    
+
+        if not parameters['const_obs']:
+            plt.figure()
+            for algo in parameters['algorithms']:
+                color = colors[algo]
+                shape = shapes[algo]
+
+                errs = []
+                for r in range(reruns):
+                    est_E_0s = []
+                    for T in parameters['final_times']:
+                        est_E_0s.append(all_est_E_0s[algo][T][r][-1])
+                    errs.append([abs(w-real_E_0) for w in est_E_0s])
+                
+                avg_err = []
+                std_err = []
+                for j in range(len(errs[0])):
+                    temp = []
+                    for i in range(len(errs)):
+                        temp.append(errs[i][j])
+                    avg_err.append(np.average(temp))
+                    std_err.append(np.std(temp))
+
+                plt.plot(parameters['final_times'], avg_err, c = color, marker = shape, label = algo)
+                if show_std: plt.fill_between(parameters['final_times'], np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
+
+            plt.plot([0,parameters['final_times'][-1]], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
+            if max_itr != -1: plt.xlim([0, max_itr])
+            plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
+            plt.ylabel('Absolute Error')
+            plt.xlabel('Total Evolution Time ('+str(parameters['observables'])+' observables per point)')
+            plt.legend()
+            plt.yscale('log')
+            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Times.png', bbox_inches='tight')
+            plt.show()
+
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
@@ -270,8 +305,10 @@ def isolate_graphs(parameters):
         filename = make_filename(parameters, add_shots=True)
         graph_types = ['Spectrum']
         if parameters['algorithms']:
-            graph_types.append('Abs_Error')
-            graph_types.append('Convergence')
+            graph_types.append('Abs_Error_Queries')
+            graph_types.append('Convergence_Queries')
+            if not parameters['const_obs']:
+                graph_types.append('Abs_Error_Times')       
         if contains_linear:
             graph_types.append('Expectation_Value')
             graph_types.append('Fourier_Transform_Expectation_Value')
