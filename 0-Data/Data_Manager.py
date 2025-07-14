@@ -455,7 +455,7 @@ def generate_exp_vals(parameters, gausses={}):
                 for i in range(time_steps_per_itr):
                     times.add(2**iteration*i)
                 iteration+=1
-            print(T/max(times))
+            print(T/max(times), iteration, max(times))
             for time in times:
                 exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*T/max(times)))
             all_exp_vals['sparse'][T].append(exp_vals)

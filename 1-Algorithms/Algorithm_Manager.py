@@ -47,7 +47,7 @@ def run(parameters, skipping:int=1):
                     algo_exp_vals['exp_vals'] = all_exp_vals['linear'][T][run]
                     if algo_name == 'VQPE':
                         algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][T][run]
-                observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, skipping=skipping)
+                observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=skipping)
                 all_observables.append(observables)
                 all_est_E_0s.append(est_E_0s)
             try: os.mkdir('1-Algorithms/Results')
@@ -57,22 +57,22 @@ def run(parameters, skipping:int=1):
                 pickle.dump([all_observables, all_est_E_0s], file)
             print('Saved', algo_name+'\'s results for T = ', T, ' into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
 
-def run_single_algo(algo_name, algo_exp_vals, parameters, skipping=1):
+def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
     for key in algo_exp_vals:
         if key == 'exp_vals' or key == 'sparse_exp_vals':
             algo_exp_vals[key][0] = 1 + 0j
 
     if algo_name == 'QCELS':
-        Dt = parameters['T']/parameters['observables']
+        Dt = T/parameters['observables']
         est_E_0s, observables = QCELS(algo_exp_vals['exp_vals'], Dt, parameters['QCELS_lambda_prior'], skipping=skipping)
     elif algo_name == 'ODMD':
-        Dt = parameters['T']/parameters['observables']
+        Dt = T/parameters['observables']
         threshold = parameters['ODMD_svd_threshold']
         full_observable = parameters['ODMD_full_observable']
         exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, skipping=skipping)
     elif algo_name == 'FODMD':
-        Dt = parameters['T']/parameters['observables']
+        Dt = T/parameters['observables']
         threshold = parameters['FODMD_svd_threshold']
         full_observable = parameters['FODMD_full_observable']
         fourier_params = {}
@@ -83,19 +83,17 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, skipping=1):
         exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=True, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
-        Dt = parameters['T']/parameters['observables']
+        Dt = T/parameters['observables']
         est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], Dt,  parameters['UVQPE_svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
-        Dt = parameters['T']/parameters['observables']
         exp_vals = algo_exp_vals['sparse_exp_vals']
-        est_E_0s, observables = ML_QCELS(exp_vals, Dt, parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'], sparse=True)
+        est_E_0s, observables = ML_QCELS(exp_vals, T, parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'])
     elif algo_name == 'VQPE':
         exp_vals = algo_exp_vals['exp_vals']
         Hexp_vals = algo_exp_vals['Hexp_vals']
         est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['pauli_strings']), parameters['VQPE_svd_threshold'], skipping=skipping)
     elif algo_name == 'QMEGS':
         exp_vals = algo_exp_vals['gauss_exp_vals']
-        T = parameters['T']
         alpha = parameters['QMEGS_alpha']
         q = parameters['QMEGS_q']
         K = parameters['QMEGS_K']

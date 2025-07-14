@@ -18,9 +18,9 @@ parameters = {}
 
 # Generic Parameters
 parameters['comp_type']    = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables']  = 110
+parameters['observables']  = 138
 parameters['sites']        = 2
-parameters['T']            = 10000000
+parameters['T']            = 1100000000
 parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
@@ -48,7 +48,7 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms']    = ['ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
+parameters['algorithms']    = ['ODMD', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
 parameters['const_obs']     = False # if False then constant time
 parameters['num_time_sims'] = 1
 parameters['reruns']        = 1
@@ -77,5 +77,5 @@ parameters['QMEGS_K']              = 2
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)
-    algo.run(parameters, skipping=10)
+    algo.run(parameters, skipping=1)
     graph_gen.run(parameters, show_std=True)

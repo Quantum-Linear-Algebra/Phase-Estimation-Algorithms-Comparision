@@ -4,10 +4,11 @@ from scipy.optimize import minimize
 def arrange_Z_ests(old_Z_ests, ts, sparse):
     if sparse:
         max = np.sort(list(old_Z_ests.keys()))[-1]
-        iterations = int(np.log2(max/ts))+1
+        iterations = int(np.log2(max/(ts-1)))+1
     else:
         iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1)))) + 1
     
+    print(iterations, max)
     Z_ests = []
     for iter in range(iterations):
         Z_ests.append([])
@@ -78,16 +79,16 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, tau):
         tau*=2
     return res
 
-def ML_QCELS(Z_ests, Dt, ts, lambda_prior, sparse=False):
+def ML_QCELS(Z_ests, T, ts, lambda_prior, sparse=True):
     observables = []
     est_E_0s = []
-    print(len(Z_ests))
+    dt = T/np.sort(list(Z_ests.keys()))[-1]
     Z_ests = arrange_Z_ests(Z_ests, ts, sparse=sparse)
     iterations = len(Z_ests)
     for iter in range(iterations+1):
-        ground_energy_estimate_QCELS= qcels_largeoverlap(Z_ests[:iter+1], ts, lambda_prior, Dt)
+        ground_energy_estimate_QCELS = qcels_largeoverlap(Z_ests[:iter+1], ts, lambda_prior, dt)
         times = set()
-        for i in range(iter+1):
+        for i in range(iter):
             for j in range(ts):
                 times.add((2**i)*j)
         observables.append(2*len(times))
