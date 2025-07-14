@@ -81,6 +81,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, tau):
 def ML_QCELS(Z_ests, Dt, ts, lambda_prior, sparse=False):
     observables = []
     est_E_0s = []
+    print(len(Z_ests))
     Z_ests = arrange_Z_ests(Z_ests, ts, sparse=sparse)
     iterations = len(Z_ests)
     for iter in range(iterations+1):

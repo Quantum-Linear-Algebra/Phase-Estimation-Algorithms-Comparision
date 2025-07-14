@@ -76,52 +76,18 @@ def QMEGS_ground_energy(exp_vals,T_max,alpha,q, K, skipping = 1):
         if im_p0 > .5: Im = 1
         # elif im_p0 == .5: Im = 0
         else: Im = -1
+
         Z_ests.append(complex(Re, Im))
     Z_ests = np.array(Z_ests)
     t_list = np.array(t_list)
-    output_energies = []
     # T_totals = []
     d_x=q/T_max
-    for i in range(len(Z_ests)//skipping):
-        idx = i*skipping + 1
+    output_energies = []
+    observables = []
+    for i in range(len(Z_ests)):
+        if i%skipping!=skipping-1: continue
         # T_totals.append(sum(np.abs(t_list[:i])))
-        Es = QMEGS_algo(Z_ests[:idx], d_x, t_list[:idx], alpha, T_max, K)
+        Es = QMEGS_algo(Z_ests[:i+1], d_x, t_list[:i+1], alpha, T_max, K)
         output_energies.append(Es[0])
-    return output_energies, [2*(i*skipping+1) for i in range(len(Z_ests)//skipping)]#, T_totals
-
-def QMEGS_full_T(exp_vals,T_max,alpha,q, K, skipping = 1):
-    """ 
-    Uses QMEGS to estimate ground state energy
-    -Input:
-    Z_ests: np.array of signal
-    t_list: np.array of time points
-    T_max: maximal time
-    alpha: interval constant
-    q: searching parameter
-
-    -Output:
-    output_energy: ground state energy estimate
-    len(Z_ests): number of observables
-    T_total_QMEGS: Total running time of QMEGS
-    """
-    t_list = list(exp_vals.keys())
-    Z_ests = []
-    for time in t_list:
-        exp_val = exp_vals[time]
-        re_p0 = (exp_val.real+1)/2
-        im_p0 = (exp_val.imag+1)/2
-        if re_p0 > .5: Re = 1
-        # elif re_p0 == .5: Re = 0
-        else: Re = -1
-        if im_p0 > .5: Im = 1
-        # elif im_p0 == .5: Im = 0
-        else: Im = -1
-        Z_ests.append(complex(Re, Im))
-    Z_ests = np.array(Z_ests)
-    t_list = np.array(t_list)
-    output_energies = []
-    # T_totals = []
-    d_x=q/T_max
-    # T_totals.append(sum(np.abs(t_list[:i])))
-    Es = QMEGS_algo(Z_ests, d_x, t_list, alpha, T_max, K)
-    return Es[0]
+        observables.append((i+1)*2)
+    return output_energies, observables#, T_totals

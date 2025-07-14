@@ -43,7 +43,7 @@ def check(parameters):
         parameters['T'] = float(parameters['T'])
         assert(parameters['T']>0)
         if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
-        if 'reruns' not in parameters: parameters['reruns'] = 1
+        if parameters['comp_type'] == 'C' or 'reruns' not in parameters: parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
             used_variables.append('g')
             if parameters['comp_type'] != 'C':
@@ -132,14 +132,12 @@ def check(parameters):
         # adjust the observables so that all algorithms match ML_QCELS's observables
         iteration = 0
         time_steps_per_itr = parameters['ML_QCELS_time_steps']
-        exp_vals = set()
-        while len(exp_vals) < parameters['observables']/2:
+        times = set()
+        while len(times) < parameters['observables']/2:
             for i in range(time_steps_per_itr):
-                time = 2**iteration*i
-                if time in exp_vals: continue
-                exp_vals.add(time)
+                times.add(2**iteration*i)
             iteration+=1
-        parameters['observables'] = len(exp_vals)*2
+        parameters['observables'] = len(times)*2
         if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
             delta = 1*sqrt(1-parameters['overlap'])
             parameters['T'] = parameters['observables']*delta/parameters['ML_QCELS_time_steps']
@@ -234,14 +232,13 @@ def make_filename(parameters, add_shots = False, key='', T = -1):
         string += '_obs='+str(parameters['observables'])
     if key == 'gausts':
         string += '_sigma='+str(parameters['QMEGS_sigma'])
-    if add_shots and parameters['comp_type'] != 'C':
+    if add_shots:
         string += '_reruns='+str(parameters['reruns'])
-        string += '_shots='+str(parameters['shots'])
+        if parameters['comp_type'] != 'C':
+            string += '_shots='+str(parameters['shots'])
     return string
 
-def check_contains_linear(algos, const_obs):
-    if not const_obs and 'ML_QCELS' in algos:
-        return True
+def check_contains_linear(algos):
     linear = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS']
     for algo in algos:
         if algo in linear:

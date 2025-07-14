@@ -405,7 +405,7 @@ def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', 
             gates.append(controlled_U)
     return gates, statevector
 
-def generate_exp_vals(parameters):
+def generate_exp_vals(parameters, gausses={}):
     '''
     Generate the exp_vals spectrum
 
@@ -418,7 +418,6 @@ def generate_exp_vals(parameters):
     '''
 
     observables = parameters['observables']
-    Dt = parameters['T']/observables
     num_timesteps = int(observables/2)
     sv = parameters['sv']
     H,_ = create_hamiltonian(parameters)
@@ -428,9 +427,9 @@ def generate_exp_vals(parameters):
         spectrum.append(np.abs(sv.conj().T@vecs[:,i])**2)
     
     all_exp_vals = {}
-    if check_contains_linear(parameters['algorithms'], parameters['const_obs']):
+    if check_contains_linear(parameters['algorithms']):
         all_exp_vals['linear'] = {}
-    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
+    if 'ML_QCELS' in parameters['algorithms']:
         all_exp_vals['sparse'] = {}
     if 'VQPE' in parameters['algorithms']:
         all_exp_vals['vqpets'] = {}
@@ -439,30 +438,26 @@ def generate_exp_vals(parameters):
     
     final_times = parameters['final_times']    
     for i in range(len(final_times)):
-        T = final_times[i]
-        if check_contains_linear(parameters['algorithms'], parameters['const_obs']):
-            all_exp_vals['linear'][T] = []
-        if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']:
-            all_exp_vals['sparse'][T] = []
-        if 'VQPE' in parameters['algorithms']:
-            all_exp_vals['vqpets'][T] = []
-        if 'QMEGS' in parameters['algorithms']:
-            all_exp_vals['gausts'][T] = []
+        T = final_times[i]                
+        for key in all_exp_vals:
+            all_exp_vals[key][T] = []
         if 'linear' in all_exp_vals:
             exp_vals = []
             for i in range(num_timesteps):
-                exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*Dt)))
+                exp_vals.append(np.sum(np.array(spectrum)*np.exp(-1j*E*i*T/observables)))
             all_exp_vals['linear'][T].append(exp_vals)
         if 'sparse' in all_exp_vals:
             exp_vals = {}
             iteration = 0
             time_steps_per_itr = parameters['ML_QCELS_time_steps']
-            while len(exp_vals) < num_timesteps:
+            times = set()
+            while len(times) < num_timesteps:
                 for i in range(time_steps_per_itr):
-                    time = 2**iteration*i
-                    if time in exp_vals: continue
-                    exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*Dt))
+                    times.add(2**iteration*i)
                 iteration+=1
+            print(T/max(times))
+            for time in times:
+                exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*T/max(times)))
             all_exp_vals['sparse'][T].append(exp_vals)
         if 'vqpets' in all_exp_vals:
             exp_vals = []
@@ -473,12 +468,11 @@ def generate_exp_vals(parameters):
             all_exp_vals['vqpets'][T].append(exp_vals)
         if 'gausts' in all_exp_vals:
             exp_vals = {}
-            times = generate_ts_distribution(parameters['T'],num_timesteps,parameters['QMEGS_sigma'])
+            times = gausses[T]
             # print(times)
             for t in times:
                 exp_vals[t] = np.sum(np.array(spectrum)*np.exp(-1j*E*t))
             all_exp_vals['gausts'][T].append(exp_vals)
-
     return all_exp_vals
 
 def transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=False, pauli_string='', gauss = []):
@@ -580,11 +574,12 @@ def run(parameters, returns):
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
 
     used_time_series = []
-    if check_contains_linear(parameters['algorithms'], parameters['const_obs']): used_time_series.append('linear')
+    if check_contains_linear(parameters['algorithms']): used_time_series.append('linear')
     if 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
+    
+    gauss_distributed_ts = {}
     if 'QMEGS' in parameters['algorithms']:
         used_time_series.append('gausts')
-        gauss_distributed_ts = {}
         for T in parameters['final_times']:
             gauss_distributed_ts[T] = generate_ts_distribution(parameters['T'],parameters['observables'],parameters['QMEGS_sigma'])
     if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
@@ -609,7 +604,7 @@ def run(parameters, returns):
                             with open(filename, 'wb') as file:
                                 qpy.dump(trans_qcs, file)
                         else:
-                            print('File found for '+pauli_string+' Imaginary Hadamard tests with observables =', parameters['observables'])
+                            print('  File found for '+pauli_string+' Imaginary Hadamard tests with observables =', parameters['observables'])
                         filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
                         if empty(filename):
                             print('  Creating file for '+pauli_string+' Imaginary Hadamard test s with observables =', parameters['observables'])
@@ -617,7 +612,7 @@ def run(parameters, returns):
                             with open(filename, 'wb') as file:
                                 qpy.dump(trans_qcs, file)
                         else:
-                            print('File found for '+pauli_string+' Imaginary Hadamard tests with  observables =', parameters['observables'])
+                            print('  File found for '+pauli_string+' Imaginary Hadamard tests with  observables =', parameters['observables'])
                 else:
                     name = make_filename(parameters, key=time_series_name, T=T)
                     
@@ -633,7 +628,7 @@ def run(parameters, returns):
                         with open(filename, 'wb') as file:
                             qpy.dump(trans_qcs, file)
                     else:
-                        print('File found for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
+                        print('  File found for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
                     filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
                     if empty(filename):
                         print('  Creating file for '+time_series_name+' Imaginary Hadamard tests with observables =', parameters['observables'])
@@ -641,7 +636,7 @@ def run(parameters, returns):
                         with open(filename, 'wb') as file:
                             qpy.dump(trans_qcs, file)
                     else:
-                        print('File found for Linear Imaginary Hadamard tests with observables =', parameters['observables'])
+                        print('  File found for Linear Imaginary Hadamard tests with observables =', parameters['observables'])
         print()
 
     # load/generate exp_vals data
@@ -739,7 +734,7 @@ def run(parameters, returns):
     all_exp_vals = {}
     if parameters['comp_type'] == 'C':
         print('Generating Data')
-        all_exp_vals = generate_exp_vals(parameters)
+        all_exp_vals = generate_exp_vals(parameters, gausses=gauss_distributed_ts)
     elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
         if 'linear' in used_time_series: all_exp_vals['linear'] = []
         if 'sparse' in used_time_series: all_exp_vals['sparse'] = []
@@ -818,6 +813,7 @@ def run(parameters, returns):
     for dataset_name in all_exp_vals.keys():
         for T in parameters['final_times']:
             filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=dataset_name, T=T)+'.pkl'
+            assert(len(all_exp_vals[dataset_name][T])>=reruns)
             with open(filename, 'wb') as file:
                 pickle.dump(all_exp_vals[dataset_name][T], file)
             print('Saved expectation values into file.', '('+filename+')')

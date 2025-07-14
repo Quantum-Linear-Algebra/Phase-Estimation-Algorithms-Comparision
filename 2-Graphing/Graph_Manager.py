@@ -19,7 +19,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
     # setup relavant variables
     reruns = parameters['reruns']
     
-    contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
+    contains_linear = check_contains_linear(parameters['algorithms'])
     fourier_filtering = 'FODMD' in parameters['algorithms']
     Dt = parameters['T']/parameters['observables']
 
@@ -198,7 +198,6 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                     temp.append(errs[i][j])
                 avg_err.append(np.average(temp))
                 std_err.append(np.std(temp))
-
             plt.plot(queries, avg_err, c = color, marker = shape, label = algo+' T='+str(T))
             if show_std: plt.fill_between(all_queries[algo], np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
 
@@ -207,7 +206,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         if max_itr != -1: plt.xlim([0, max_itr])
         plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
         plt.ylabel('Absolute Error')
-        plt.xlabel('Total Queries ('+str(parameters['shots'])+' per circuit)')
+        plt.xlabel('Total Queries ('+str(parameters['shots'])+' shot(s) per circuit)')
         plt.legend()
         plt.yscale('log')
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Queries.png', bbox_inches='tight')
@@ -294,7 +293,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
-    contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
+    contains_linear = check_contains_linear(parameters['algorithms'])
     
     exit_code = os.system('rm -rf Recent_Graphs')
     assert(exit_code == 0)

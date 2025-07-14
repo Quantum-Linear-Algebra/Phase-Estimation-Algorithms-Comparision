@@ -107,39 +107,44 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=
     else:
         s_ks = np.array(fourier_filter_exp_vals(s_k, fourier_params['gamma_range'], fourier_params['filters']))
     # print(np.linalg.norm(s_k-s_ks[0]))
-    k = -skipping
+    k = -1
     est_E_0s = []
+    observables = []
     while (True):
-        k += skipping
+        k+=1
+        if k%skipping!=skipping-1: continue
         if k>=max_iterations: break
         if show_steps: print("k =", k+1)
-        if k < 1: est_E_0s.append(0); continue # prevent svd from breaking
-        temp = make_hankel(s_ks[:,:k+1])
-        X = temp[:,:-1]
-        Xprime = temp[:,1:]
-        if show_steps: print("X"); print_matrix(X)
-        if show_steps: print("Xprime") ; print_matrix(Xprime)
-        U, S, Vh = svd(X, full_matrices=False)
-        r = np.sum(S > svd_threshold * S[0]) # Rank truncation
-        U = U[:, :r]
-        if show_steps: print("singular values:", S)
-        S = S[:r]
-        if show_steps: print("filtered singular values:", S)
-        V = Vh[:r, :].conj().T
-        S_inv = np.diag(1/S)
-        A = U.conj().T @ Xprime @ V @ S_inv # atilde from ROEL_ODMD
-        # print(np.linalg.matrix_rank(A))
-        if show_steps: print("A"); print_matrix(A)  
-        eigenvalues = np.linalg.eigvals(A)
-        if show_steps: print("eigenvalues\n", eigenvalues)
-        omega = np.sort(-np.imag(np.log(eigenvalues)/Dt))
-        if show_steps: print("omega =", omega)
-        E_0 = omega[0]
+        if k < 1:
+            E_0 = 0
+        else:
+            temp = make_hankel(s_ks[:,:k+1])
+            X = temp[:,:-1]
+            Xprime = temp[:,1:]
+            if show_steps: print("X"); print_matrix(X)
+            if show_steps: print("Xprime") ; print_matrix(Xprime)
+            U, S, Vh = svd(X, full_matrices=False)
+            r = np.sum(S > svd_threshold * S[0]) # Rank truncation
+            U = U[:, :r]
+            if show_steps: print("singular values:", S)
+            S = S[:r]
+            if show_steps: print("filtered singular values:", S)
+            V = Vh[:r, :].conj().T
+            S_inv = np.diag(1/S)
+            A = U.conj().T @ Xprime @ V @ S_inv # atilde from ROEL_ODMD
+            # print(np.linalg.matrix_rank(A))
+            if show_steps: print("A"); print_matrix(A)  
+            eigenvalues = np.linalg.eigvals(A)
+            if show_steps: print("eigenvalues\n", eigenvalues)
+            omega = np.sort(-np.imag(np.log(eigenvalues)/Dt))
+            if show_steps: print("omega =", omega)
+            E_0 = omega[0]
+        obs = k+1
+        if full_observable: obs *=2        
+        observables.append(obs)
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)
         if precision!=0 and check_convergence(est_E_0s, precision): break
-    obs = [(i*skipping + 1) for i in range(len(s_ks[0])//skipping)]
-    if full_observable: obs = [i*2 for i in obs]
-    return est_E_0s, obs
+    return est_E_0s, observables
 
 

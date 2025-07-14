@@ -15,13 +15,13 @@ sys.path.append('./0-Data')
 
 def run(parameters, skipping:int=1):
     print('\nRunning Algorithms')
-    contains_linear = check_contains_linear(parameters['algorithms'], parameters['const_obs'])
+    contains_linear = check_contains_linear(parameters['algorithms'])
     all_exp_vals = {}
     
     final_times = parameters['final_times']
 
     if contains_linear: all_exp_vals['linear'] = {}
-    if parameters['const_obs'] and 'ML_QCELS' in parameters['algorithms']: all_exp_vals['sparse'] = {}
+    if 'ML_QCELS' in parameters['algorithms']: all_exp_vals['sparse'] = {}
     if 'VQPE' in parameters['algorithms']: all_exp_vals['vqpets'] = {}
     if 'QMEGS' in parameters['algorithms']: all_exp_vals['gausts'] = {}
 
@@ -35,10 +35,11 @@ def run(parameters, skipping:int=1):
             all_observables = []
             all_est_E_0s = []
             reruns = parameters['reruns']
-            for key in all_exp_vals: assert(len(all_exp_vals[key][T])>=reruns)
+            for key in all_exp_vals:
+                assert(len(all_exp_vals[key][T])>=reruns)
             for run in range(reruns):
                 algo_exp_vals = {}
-                if parameters['const_obs'] and algo_name == 'ML_QCELS':
+                if algo_name == 'ML_QCELS':
                     algo_exp_vals['sparse_exp_vals'] = all_exp_vals['sparse'][T][run]
                 elif algo_name == 'QMEGS':
                     algo_exp_vals['gauss_exp_vals'] = all_exp_vals['gausts'][T][run]
@@ -47,8 +48,6 @@ def run(parameters, skipping:int=1):
                     if algo_name == 'VQPE':
                         algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][T][run]
                 observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, skipping=skipping)
-                assert(len(observables)>0)
-                assert(len(est_E_0s)>0)
                 all_observables.append(observables)
                 all_est_E_0s.append(est_E_0s)
             try: os.mkdir('1-Algorithms/Results')
@@ -88,10 +87,8 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, skipping=1):
         est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], Dt,  parameters['UVQPE_svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
         Dt = parameters['T']/parameters['observables']
-        sparse = parameters['const_obs']
-        if sparse: exp_vals = algo_exp_vals['sparse_exp_vals']
-        else: exp_vals = algo_exp_vals['exp_vals']
-        est_E_0s, observables = ML_QCELS(exp_vals, Dt, parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'], sparse=sparse)
+        exp_vals = algo_exp_vals['sparse_exp_vals']
+        est_E_0s, observables = ML_QCELS(exp_vals, Dt, parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'], sparse=True)
     elif algo_name == 'VQPE':
         exp_vals = algo_exp_vals['exp_vals']
         Hexp_vals = algo_exp_vals['Hexp_vals']
@@ -106,6 +103,12 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, skipping=1):
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']
+    try:
+        assert(len(observables)==len(est_E_0s))
+        assert(len(est_E_0s)>0)
+    except:
+        print('There was a problem estimating the ground energy with', algo_name+'.')
+        sys.exit(0)
     return observables, est_E_0s
 
 # def gep_condition_number(A, B):
