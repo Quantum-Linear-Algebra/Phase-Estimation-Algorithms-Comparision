@@ -140,7 +140,7 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=
             if show_steps: print("omega =", omega)
             E_0 = omega[0]
         obs = k+1
-        if full_observable: obs *=2        
+        if full_observable: obs *= 2
         observables.append(obs)
         est_E_0s.append(E_0)
         if show_steps: print("E_0 =", E_0)

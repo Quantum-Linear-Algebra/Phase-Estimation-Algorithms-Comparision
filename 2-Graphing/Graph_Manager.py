@@ -94,7 +94,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
     plt.xticks(range(vecs_num), [f'{i:.5}' for i in E[:vecs_num]], rotation=90)
     plt.xlabel('Energy value of eigenstate', labelpad=10)
     plt.ylabel('Overlap with input state')
-    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.png', bbox_inches='tight')
+    plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Spectrum.pdf', bbox_inches='tight')
     plt.show()
 
     alpha = 1/reruns
@@ -113,7 +113,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         plt.xlabel('Time')
         plt.ylabel('Expectation Value')
         plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.pdf', bbox_inches='tight')
         plt.show()
         
 
@@ -126,7 +126,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         plt.xlabel('Frequency')
         plt.ylabel('Amplitude')
         plt.title('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.pdf', bbox_inches='tight')
         plt.show()
 
         if fourier_filtering:
@@ -142,13 +142,14 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             ax.set_zlabel('Expectation Value')
             plt.xlabel('gamma')
             plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
-            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Expectation_Value.png')
+            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Expectation_Value.pdf')
             plt.show()
             
             plt.figure()
 
             fig, axes = plt.subplots(nrows=filters//5+1, ncols=min(5, filters), figsize=(min(5, filters)*8, (filters//5+1)*5))
             if filters == 1: axes = [axes]
+            if len(axes)<5: axes = [axes]
             for i in range(reruns):
                 if parameters['FODMD_full_observable']: data = all_exp_vals[i]
                 else: data = [j.real for j in all_exp_vals[i]]
@@ -160,7 +161,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                     if j//5==0: axes[j//5][j%5].set_ylabel('Amplitute')
                     axes[j//5][j%5].set_xlabel('Frequency')
             fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
-            fig.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Fourier_Transform_Expectation_Value.png', bbox_inches='tight')
+            fig.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Fourier_Transform_Expectation_Value.pdf', bbox_inches='tight')
             fig.show()
     
     if parameters['algorithms']: # if theres at least one algorithm
@@ -209,7 +210,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         plt.xlabel('Total Queries ('+str(parameters['shots'])+' shot(s) per circuit)')
         plt.legend()
         plt.yscale('log')
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Queries.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Queries.pdf', bbox_inches='tight')
         plt.show()
 
         plt.figure()
@@ -252,7 +253,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         # plt.ylim(eigs[0] - 0.1, eigs[0] + 0.1)
         plt.title('Convergence in Energy for '+parameters['system']+' with '+spectrum_string)
         plt.ylabel('Eigenvalue')
-        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence_Queries.png', bbox_inches='tight')
+        plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence_Queries.pdf', bbox_inches='tight')
         plt.show()
 
         if not parameters['const_obs']:
@@ -287,9 +288,111 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             plt.xlabel('Total Evolution Time ('+str(parameters['observables'])+' observables per point)')
             plt.legend()
             plt.yscale('log')
-            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Times.png', bbox_inches='tight')
+            plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Abs_Error_Times.pdf', bbox_inches='tight')
             plt.show()
 
+            for algo in parameters['algorithms']:
+                # === Raw Data ===
+                # Format: (final_time, observable_count, value)
+                data = []
+                # for T in all_est_E_0s[algo]:
+                #     # Average E_0 across reruns
+                #     avg_E_0 = 0.0
+                #     for r in range(reruns):
+                #         avg_E_0 += abs(all_est_E_0s[algo][T][r][-1]-real_E_0)
+                #     avg_E_0 /= reruns
+
+                #     observable = all_observables[algo][T][r][-1]
+                #     point = (observable, T, avg_E_0)
+                #     data.append(point)
+                
+                final_times = parameters['final_times']
+                final_observables = parameters['final_observables']
+
+                # observables = [int(i) for i in np.linspace(0,300,11)[1:]]
+                for obs in final_observables:
+                    for T in parameters['final_times']:
+                        try:
+                            with open('1-Algorithms/Results/'+algo+'_'+make_filename(parameters, add_shots=True, T=T, obs=obs)+'.pkl', 'rb') as file:
+                                [algo_observables, algo_est_E_0s] = pickle.load(file)
+                            avg_E_0 = 0.0
+                            for r in range(reruns):
+                                avg_E_0 += abs(algo_est_E_0s[r][-1]-real_E_0)
+                            avg_E_0 /= reruns
+                            point = (obs, T, avg_E_0)
+                            data.append(point)
+                        except Exception as e:
+                            print(e)
+                            print('Failed to grab energy estimates for '+algo+' with '+str(obs)+' observables. Try recalculating the results of the algorithm.'); break
+                        
+                # === Extract unique axis values ===
+                
+
+                # === Create index mappings ===
+                final_time_idx = {v: i for i, v in enumerate(final_times)}
+                observable_count_idx = {v: i for i, v in enumerate(final_observables)}
+
+                # === Initialize heatmap matrix ===
+                heatmap = np.full((len(final_times), len(final_observables)), np.nan)
+                
+                # === Fill the heatmap matrix ===
+                for observables, final_time, value in data:
+                    if value==0: value=1e-16
+                    row = final_time_idx[final_time]
+                    col = observable_count_idx[observables]
+                    heatmap[row][col] = value
+                heatmap = np.where((heatmap <= 0) | np.isnan(heatmap), 0, heatmap)
+
+                # === Plot the heatmap ===
+                from matplotlib.colors import LogNorm
+                fig, ax = plt.subplots(figsize=(8, 6))
+                cax = ax.imshow(heatmap, cmap='viridis', aspect='auto', norm=LogNorm(vmin=1, vmax=1e-16))
+                ax.invert_yaxis()
+                # === Colorbar ===
+                cbar = fig.colorbar(cax, ax=ax)
+                cbar.set_label('Absolute Error')
+
+                # === Set ticks and labels ===
+                # tick_positions = range(-1, max(final_times), 10)[1:]
+                # final_time_labels = range(0,max(final_times), 10)[1:]
+                ax.set_yticks(range(len(final_times)))
+                ax.set_yticklabels(final_times)
+                ax.set_xticks(range(len(final_observables)))
+                ax.set_xticklabels(final_observables)
+                ax.tick_params('x', rotation=90)
+
+                ax.set_ylabel('Final Simulation Time')
+                ax.set_xlabel('Observables')
+                ax.set_title(algo)
+
+                # === Annotate cells with values ===
+                # for i in range(len(observable_counts)):
+                #     for j in range(len(final_times)):
+                #         val = heatmap[i, j]
+                #         if not np.isnan(val):
+                #             ax.text(j, i, f'{val:.2f}', ha='center', va='center', color='white')
+
+                plt.tight_layout()
+                plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_'+algo+'_Heatmap.pdf', bbox_inches='tight')
+                plt.show()
+
+
+
+                # plt.figure()
+                # data = np.random.rand(10,10)
+                # print(data)
+                # plt.imshow(data)
+                # cbar = plt.colorbar()
+                # cbar.set_label('Absolute Error')
+                # plt.title('Super Cool graph')
+                # plt.xlabel('Observables')
+                # plt.ylabel('Final Simulation Time')
+                # times = parameters['final_times']
+                # plt.xticks(np.linspace(0,times[-1], 9))
+                # print(np.linspace(0,longest_query, 9))
+                # # plt.yticks(np.linspace(0,longest_query, 9))
+                # plt.show()
+    
     isolate_graphs(parameters)
 
 def isolate_graphs(parameters):
@@ -307,23 +410,25 @@ def isolate_graphs(parameters):
             graph_types.append('Abs_Error_Queries')
             graph_types.append('Convergence_Queries')
             if not parameters['const_obs']:
-                graph_types.append('Abs_Error_Times')       
+                graph_types.append('Abs_Error_Times')
+                for algo in parameters['algorithms']:
+                    graph_types.append(algo+'_Heatmap')    
         if contains_linear:
             graph_types.append('Expectation_Value')
             graph_types.append('Fourier_Transform_Expectation_Value')
         for graph_type in graph_types:
-            exit_code = os.system('cp \'2-Graphing/Graphs/'+filename+'_'+graph_type+'.png\' Recent_Graphs/'+graph_type+'.png')
+            exit_code = os.system('cp \'2-Graphing/Graphs/'+filename+'_'+graph_type+'.pdf\' Recent_Graphs/'+graph_type+'.pdf')
             assert(exit_code==0)
             if 'FODMD' in parameters['algorithms'] and graph_type[-17:] == 'Expectation_Value':
                 gamma_range = parameters['FODMD_gamma_range']
                 filters = parameters['FODMD_filter_count']
                 fn = make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)
-                exit_code = os.system('cp \'2-Graphing/Graphs/'+fn+'_'+graph_type+'.png\' Recent_Graphs/Fourier_Filtered_'+graph_type+'.png')
+                exit_code = os.system('cp \'2-Graphing/Graphs/'+fn+'_'+graph_type+'.pdf\' Recent_Graphs/Fourier_Filtered_'+graph_type+'.pdf')
                 assert(exit_code==0)      
         print('Successfully copied newly generated graphs. (', end ='')
         for graph_type in graph_types[:len(graph_types)-1]:
-            print('Recent_Graphs/'+graph_type+'.png, ', end='') 
-        print('Recent_Graphs/'+graph_types[-1]+'.png)') 
+            print('Recent_Graphs/'+graph_type+'.pdf, ', end='') 
+        print('Recent_Graphs/'+graph_types[-1]+'.pdf)') 
     except Exception as e:
         print(e)
         print('One or more of the regularly generated graphs does not exist. Try regenerating the desired graphs.')

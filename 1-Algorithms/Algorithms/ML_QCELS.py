@@ -7,8 +7,6 @@ def arrange_Z_ests(old_Z_ests, ts, sparse):
         iterations = int(np.log2(max/(ts-1)))+1
     else:
         iterations = int(np.floor(np.log2((len(old_Z_ests) - 1)/(ts-1)))) + 1
-    
-    print(iterations, max)
     Z_ests = []
     for iter in range(iterations):
         Z_ests.append([])
@@ -85,10 +83,10 @@ def ML_QCELS(Z_ests, T, ts, lambda_prior, sparse=True):
     dt = T/np.sort(list(Z_ests.keys()))[-1]
     Z_ests = arrange_Z_ests(Z_ests, ts, sparse=sparse)
     iterations = len(Z_ests)
-    for iter in range(iterations+1):
+    for iter in range(iterations):
         ground_energy_estimate_QCELS = qcels_largeoverlap(Z_ests[:iter+1], ts, lambda_prior, dt)
         times = set()
-        for i in range(iter):
+        for i in range(iter+1):
             for j in range(ts):
                 times.add((2**i)*j)
         observables.append(2*len(times))

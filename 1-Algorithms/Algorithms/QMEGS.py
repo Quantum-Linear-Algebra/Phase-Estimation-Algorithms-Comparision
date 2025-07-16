@@ -47,7 +47,7 @@ def QMEGS_algo(Z_est, d_x, t_list, alpha, T, K):
         G=np.multiply(G,x_rough>interval_max)+np.multiply(G,x_rough<interval_min)
     return np.sort(Dominant_freq)
 
-def QMEGS_ground_energy(exp_vals,T_max,alpha,q, K, skipping = 1):
+def QMEGS_ground_energy(exp_vals,T_max,alpha,q, K, full_observable=True, skipping = 1):
     """ 
     Uses QMEGS to estimate ground state energy
     -Input:
@@ -66,16 +66,18 @@ def QMEGS_ground_energy(exp_vals,T_max,alpha,q, K, skipping = 1):
     Z_ests = []
     for time in t_list:
         exp_val = exp_vals[time]
+
         re_p0 = (exp_val.real+1)/2
-        im_p0 = (exp_val.imag+1)/2
-        
         if re_p0 > .5: Re = 1
         # elif re_p0 == .5: Re = 0
         else: Re = -1
 
-        if im_p0 > .5: Im = 1
-        # elif im_p0 == .5: Im = 0
-        else: Im = -1
+        if full_observable:
+            im_p0 = (exp_val.imag+1)/2
+            if im_p0 > .5: Im = 1
+            # elif im_p0 == .5: Im = 0
+            else: Im = -1
+        else: Im=0
 
         Z_ests.append(complex(Re, Im))
     Z_ests = np.array(Z_ests)
@@ -89,5 +91,7 @@ def QMEGS_ground_energy(exp_vals,T_max,alpha,q, K, skipping = 1):
         # T_totals.append(sum(np.abs(t_list[:i])))
         Es = QMEGS_algo(Z_ests[:i+1], d_x, t_list[:i+1], alpha, T_max, K)
         output_energies.append(Es[0])
-        observables.append((i+1)*2)
+        obs = i+1
+        if full_observable: obs *= 2
+        observables.append(obs)
     return output_energies, observables#, T_totals

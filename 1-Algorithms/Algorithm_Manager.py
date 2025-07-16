@@ -13,7 +13,7 @@ from QMEGS import QMEGS_ground_energy
 from ML_QCELS import ML_QCELS
 sys.path.append('./0-Data')
 
-def run(parameters, skipping:int=1):
+def run(parameters, skipping=1):
     print('\nRunning Algorithms')
     contains_linear = check_contains_linear(parameters['algorithms'])
     all_exp_vals = {}
@@ -25,37 +25,40 @@ def run(parameters, skipping:int=1):
     if 'VQPE' in parameters['algorithms']: all_exp_vals['vqpets'] = {}
     if 'QMEGS' in parameters['algorithms']: all_exp_vals['gausts'] = {}
 
-    for key in all_exp_vals:
-        for T in final_times:
-            with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=key, T=T)+'.pkl', 'rb') as file:
-                all_exp_vals[key][T] = pickle.load(file)
-            if skipping> len(all_exp_vals[key][T][0]): skipping = len(all_exp_vals[key][T][0])
-    for algo_name in parameters['algorithms']:
-        for T in final_times:
-            all_observables = []
-            all_est_E_0s = []
-            reruns = parameters['reruns']
-            for key in all_exp_vals:
-                assert(len(all_exp_vals[key][T])>=reruns)
-            for run in range(reruns):
-                algo_exp_vals = {}
-                if algo_name == 'ML_QCELS':
-                    algo_exp_vals['sparse_exp_vals'] = all_exp_vals['sparse'][T][run]
-                elif algo_name == 'QMEGS':
-                    algo_exp_vals['gauss_exp_vals'] = all_exp_vals['gausts'][T][run]
-                else: 
-                    algo_exp_vals['exp_vals'] = all_exp_vals['linear'][T][run]
-                    if algo_name == 'VQPE':
-                        algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][T][run]
-                observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=skipping)
-                all_observables.append(observables)
-                all_est_E_0s.append(est_E_0s)
-            try: os.mkdir('1-Algorithms/Results')
-            except: pass
-            filename = make_filename(parameters, add_shots=True,T=T)+'.pkl'
-            with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
-                pickle.dump([all_observables, all_est_E_0s], file)
-            print('Saved', algo_name+'\'s results for T = ', T, ' into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
+    biggest_skipping = skipping
+    for obs in parameters['final_observables']:
+        skipping=biggest_skipping
+        for key in all_exp_vals:
+            for T in final_times:
+                with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=key, T=T, obs=obs)+'.pkl', 'rb') as file:
+                    all_exp_vals[key][T] = pickle.load(file)
+                if skipping> len(all_exp_vals[key][T][0]): skipping = len(all_exp_vals[key][T][0])
+        for algo_name in parameters['algorithms']:
+            for T in final_times:
+                all_observables = []
+                all_est_E_0s = []
+                reruns = parameters['reruns']
+                for key in all_exp_vals:
+                    assert(len(all_exp_vals[key][T])>=reruns)
+                for run in range(reruns):
+                    algo_exp_vals = {}
+                    if algo_name == 'ML_QCELS':
+                        algo_exp_vals['sparse_exp_vals'] = all_exp_vals['sparse'][T][run]
+                    elif algo_name == 'QMEGS':
+                        algo_exp_vals['gauss_exp_vals'] = all_exp_vals['gausts'][T][run]
+                    else: 
+                        algo_exp_vals['exp_vals'] = all_exp_vals['linear'][T][run]
+                        if algo_name == 'VQPE':
+                            algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][T][run]
+                    observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=skipping)
+                    all_observables.append(observables)
+                    all_est_E_0s.append(est_E_0s)
+                try: os.mkdir('1-Algorithms/Results')
+                except: pass
+                filename = make_filename(parameters, add_shots=True,T=T, obs=obs)+'.pkl'
+                with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
+                    pickle.dump([all_observables, all_est_E_0s], file)
+                print('Saved', algo_name+'\'s results for T = ', T, ' into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
 
 def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
     for key in algo_exp_vals:
@@ -97,7 +100,8 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
         alpha = parameters['QMEGS_alpha']
         q = parameters['QMEGS_q']
         K = parameters['QMEGS_K']
-        est_E_0s, observables = QMEGS_ground_energy(exp_vals, T, alpha, q, K, skipping=skipping)
+        full_observable = parameters['QMEGS_full_observable']
+        est_E_0s, observables = QMEGS_ground_energy(exp_vals, T, alpha, q, K, full_observable=full_observable, skipping=skipping)
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):
         est_E_0s[i] = (est_E_0s[i]-parameters['shifting'])*parameters['r_scaling']
@@ -105,6 +109,8 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
         assert(len(observables)==len(est_E_0s))
         assert(len(est_E_0s)>0)
     except:
+        print('observables:', observables)
+        print('est_E_0s:', est_E_0s)
         print('There was a problem estimating the ground energy with', algo_name+'.')
         sys.exit(0)
     return observables, est_E_0s
@@ -141,4 +147,4 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     check(parameters)
-    run(parameters, skipping=int(parameters['observables']/2))
+    run(parameters, skipping=parameters['observables'])
