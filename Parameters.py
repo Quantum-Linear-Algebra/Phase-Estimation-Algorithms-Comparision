@@ -94,14 +94,20 @@ def check(parameters):
         else: parameters['sv'] = eig_vec[:,0]
         parameters['scaled_E_0'] = energy[0]
         
-        if 'const_obs' not in parameters: parameters['const_obs'] = False
+        if 'const_obs' not in parameters:
+            parameters['const_obs'] = False
         used_variables.append('final_times')
+        used_variables.append('final_observables')
         if not parameters['const_obs']:
             num_sims = 10
             if 'num_time_sims' in parameters: num_sims = parameters['num_time_sims']
             parameters['final_times'] = linspace(0, parameters['T'], num_sims+1)[1:] # excluding 0
+            num_sims = 10
+            if 'num_obs_sims' in parameters: num_sims = parameters['num_obs_sims']
+            parameters['final_observables'] = [int(i) for i in linspace(0, parameters['observables'], num_sims+1)[1:]] # excluding 0
         else:
             parameters['final_times'] = [parameters['T']]
+            parameters['final_observables'] = [parameters['observables']]
 
     if 'VQPE' in parameters['algorithms']:
         used_variables.append('VQPE_svd_threshold')
@@ -138,6 +144,16 @@ def check(parameters):
                 times.add(2**iteration*i)
             iteration+=1
         parameters['observables'] = len(times)*2
+
+        for obs in range(len(parameters['final_observables'])):
+            iteration = 0
+            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+            times = set()
+            while len(times) < parameters['final_observables'][obs]/2:
+                for i in range(time_steps_per_itr):
+                    times.add(2**iteration*i)
+                iteration+=1
+            parameters['final_observables'][obs] = len(times)*2
         if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
             delta = 1*sqrt(1-parameters['overlap'])
             parameters['T'] = parameters['observables']*delta/parameters['ML_QCELS_time_steps']
@@ -171,7 +187,9 @@ def check(parameters):
         if 'QMEGS_alpha' not in parameters: parameters['QMEGS_alpha'] = 5
         used_variables.append('QMEGS_K')
         if 'QMEGS_K' not in parameters: parameters['QMEGS_K'] = 1
-        
+        used_variables.append('QMEGS_full_observable')
+        if 'QMEGS_full_observable' not in parameters: parameters['QMEGS_full_observable'] = True
+
     keys = []
     for i in parameters.keys():
         keys.append(i)
@@ -192,7 +210,7 @@ def check(parameters):
     return returns
 
 # define a system for naming files
-def make_filename(parameters, add_shots = False, key='', T = -1):
+def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     system = parameters['system']
     
     string = ''
@@ -226,10 +244,13 @@ def make_filename(parameters, add_shots = False, key='', T = -1):
         string+=f'{var:0.2}]'
     if T == -1: string+='_T='+str(parameters['T'])
     else: string+='_T='+str(T)
-    if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
-        string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
+    if obs == -1:
+        if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
+            string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
+        else:
+            string += '_obs='+str(parameters['observables'])
     else:
-        string += '_obs='+str(parameters['observables'])
+        string += '_obs='+str(obs)
     if key == 'gausts':
         string += '_sigma='+str(parameters['QMEGS_sigma'])
     if add_shots:

@@ -17,15 +17,15 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']    = 'C' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables']  = 138
+parameters['comp_type']    = 'H' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['observables']  = 100
 parameters['sites']        = 2
-parameters['T']            = 1100000000
+parameters['T']            = 200
 parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
-parameters['overlap']      = 1   # the initial state overlap
-# parameters['distribution'] = [.4,.4]+[(1-.8)/(2**8-2)]*(2**8-2)
+parameters['overlap']      = .5   # the initial state overlap
+# parameters['distribution'] = [.5]+[.5/(2^2-1)]*(2^2-1)
 
 # SPECIFIC SYSTEM TYPE
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
@@ -48,34 +48,37 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms']    = ['ODMD', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
+parameters['algorithms']    = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'QMEGS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
 parameters['const_obs']     = False # if False then constant time
-parameters['num_time_sims'] = 1
+parameters['num_time_sims'] = 10
+parameters['num_obs_sims']  = 10
 parameters['reruns']        = 1
 
 # Algorithm Specific Parameters
-parameters['ODMD_svd_threshold']   = 10**-1
-parameters['ODMD_full_observable'] = True
+parameters['ODMD_svd_threshold']    = 10**-1
+parameters['ODMD_full_observable']  = True
 
 parameters['FODMD_svd_threshold']   = 10**-1
 parameters['FODMD_full_observable'] = True
-parameters['FODMD_gamma_range']     = (1,3) # (min, max)
-parameters['FODMD_filter_count']    = 6
+parameters['FODMD_gamma_range']     = (1,4) # (min, max)
+parameters['FODMD_filter_count']    = 4
 
-parameters['VQPE_svd_threshold']   = 10**-1
+parameters['VQPE_svd_threshold']    = 10**-1
 
-parameters['UVQPE_svd_threshold']  = 9*10**-1
+parameters['UVQPE_svd_threshold']   = 10**-1
 
-parameters['ML_QCELS_time_steps']  = 5
-parameters['ML_QCELS_calc_Dt']     = False
+parameters['ML_QCELS_time_steps']   = 5
+parameters['ML_QCELS_calc_Dt']      = False
 
-parameters['QMEGS_sigma']          = 1
-parameters['QMEGS_q']              = 0.05
-parameters['QMEGS_alpha']          = 5
-parameters['QMEGS_K']              = 2
+parameters['QMEGS_sigma']           = 1
+parameters['QMEGS_q']               = 0.05
+parameters['QMEGS_alpha']           = 5
+parameters['QMEGS_K']               = 2
+parameters['QMEGS_full_observable'] = True
+
 
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)
-    algo.run(parameters, skipping=1)
+    algo.run(parameters, skipping=100)
     graph_gen.run(parameters, show_std=True)

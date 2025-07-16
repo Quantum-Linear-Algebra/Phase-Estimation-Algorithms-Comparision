@@ -341,7 +341,7 @@ def make_overlap(ground_state, p):
     phi = np.sqrt(p) * ground_state + np.sqrt(1 - p) * random_vec
     return phi
 
-def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', gauss=[]):
+def hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=False, pauli_string='', gauss=[]):
     '''
     Gets information for creating exp_vals circuits. Creates controlled unitaries,
     and initialization statevector.
@@ -361,7 +361,7 @@ def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', 
     unordered_time_series = QMEGS or ML_QCELS
     use_F3C = not VQPE and parameters['system'] == 'TFI' and parameters['method_for_model']=="F"
     
-    num_timesteps = int(parameters['observables']/2)
+    num_timesteps = int(observables/2)
     if parameters['const_obs'] and (VQPE or parameters['algorithms'] == ['VQPE']): num_timesteps = int(num_timesteps/(len(parameters['pauli_strings'])+1))
 
     if ML_QCELS:
@@ -379,7 +379,7 @@ def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', 
     elif QMEGS:
         time_steps = gauss
     else:
-        time_steps = [i*T/parameters['observables'] for i in range(num_timesteps)]
+        time_steps = [i*T/observables for i in range(num_timesteps)]
     
     gates = []
     if use_F3C:
@@ -392,7 +392,7 @@ def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', 
             for time_step in time_steps:
                 gates.append(generate_TFIM_gates(sites, 1, time_step, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
         else:
-            gates = generate_TFIM_gates(sites, num_timesteps, T/parameters['observables'], g, scaling, coupling, trotter, '../f3cpp')
+            gates = generate_TFIM_gates(sites, num_timesteps, T/observables, g, scaling, coupling, trotter, '../f3cpp')
     else:
         ham,_ = create_hamiltonian(parameters)
         gates = []
@@ -405,7 +405,7 @@ def hadamard_tests_circuit_info(parameters, T, ML_QCELS=False, pauli_string='', 
             gates.append(controlled_U)
     return gates, statevector
 
-def generate_exp_vals(parameters, gausses={}):
+def generate_exp_vals(parameters, observables, gausses={}):
     '''
     Generate the exp_vals spectrum
 
@@ -417,7 +417,6 @@ def generate_exp_vals(parameters, gausses={}):
      - exp_vals: the data generated
     '''
 
-    observables = parameters['observables']
     num_timesteps = int(observables/2)
     sv = parameters['sv']
     H,_ = create_hamiltonian(parameters)
@@ -455,7 +454,6 @@ def generate_exp_vals(parameters, gausses={}):
                 for i in range(time_steps_per_itr):
                     times.add(2**iteration*i)
                 iteration+=1
-            print(T/max(times), iteration, max(times))
             for time in times:
                 exp_vals[time] = np.sum(np.array(spectrum)*np.exp(-1j*E*time*T/max(times)))
             all_exp_vals['sparse'][T].append(exp_vals)
@@ -464,7 +462,7 @@ def generate_exp_vals(parameters, gausses={}):
             length = num_timesteps
             if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
             for i in range(length):
-                exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*Dt)))
+                exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*T/observables)))
             all_exp_vals['vqpets'][T].append(exp_vals)
         if 'gausts' in all_exp_vals:
             exp_vals = {}
@@ -475,7 +473,7 @@ def generate_exp_vals(parameters, gausses={}):
             all_exp_vals['gausts'][T].append(exp_vals)
     return all_exp_vals
 
-def transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=False, pauli_string='', gauss = []):
+def transpile_hadamard_tests(parameters, T, observables, backend, W='Re', ML_QCELS=False, pauli_string='', gauss = []):
     '''
     Transpile the related hadamard tests to generate exp_vals
 
@@ -490,7 +488,7 @@ def transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=False, pau
     '''
 
     tqcs = []
-    gates, statevector = hadamard_tests_circuit_info(parameters, T, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
+    gates, statevector = hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
     for controlled_U in gates:
         tqcs.append(create_hadamard_tests(backend, controlled_U, statevector, W=W))
     return tqcs
@@ -573,250 +571,249 @@ def run(parameters, returns):
     reruns = parameters['reruns']
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
 
-    used_time_series = []
-    if check_contains_linear(parameters['algorithms']): used_time_series.append('linear')
-    if 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
-    
-    gauss_distributed_ts = {}
-    if 'QMEGS' in parameters['algorithms']:
-        used_time_series.append('gausts')
-        for T in parameters['final_times']:
-            gauss_distributed_ts[T] = generate_ts_distribution(parameters['T'],parameters['observables'],parameters['QMEGS_sigma'])
-    if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
+    for observables in parameters['final_observables']:
+        used_time_series = []
+        if check_contains_linear(parameters['algorithms']): used_time_series.append('linear')
+        if 'ML_QCELS' in parameters['algorithms']: used_time_series.append('sparse')
+        gauss_distributed_ts = {}
+        if 'QMEGS' in parameters['algorithms']:
+            used_time_series.append('gausts')
+            for T in parameters['final_times']:
+                obs = observables
+                if parameters['QMEGS_full_observable']: obs //= 2
+                gauss_distributed_ts[T] = generate_ts_distribution(T, obs, parameters['QMEGS_sigma'])
+        if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
+        
+        if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
+            try: os.mkdir('0-Data/Transpiled_Circuits')
+            except: pass
 
-    
-    if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
-        try: os.mkdir('0-Data/Transpiled_Circuits')
-        except: pass
-
-        for T in parameters['final_times']:
-            print('T =', T)
-            for time_series_name in used_time_series:
-                if time_series_name == 'vqpets':
-                    pauli_strings = parameters['pauli_strings']
-                    name = make_filename(parameters, T=T)
-                    for pauli_string in pauli_strings.paulis:
-                        pauli_string = str(pauli_string)
-                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
-                        if empty(filename):
-                            print('  Creating file for '+pauli_string+' Real Hadamard tests with observables =', parameters['observables'])
-                            trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Real', pauli_string=pauli_string)
-                            with open(filename, 'wb') as file:
-                                qpy.dump(trans_qcs, file)
-                        else:
-                            print('  File found for '+pauli_string+' Imaginary Hadamard tests with observables =', parameters['observables'])
-                        filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
-                        if empty(filename):
-                            print('  Creating file for '+pauli_string+' Imaginary Hadamard test s with observables =', parameters['observables'])
-                            trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Im', pauli_string=pauli_string)
-                            with open(filename, 'wb') as file:
-                                qpy.dump(trans_qcs, file)
-                        else:
-                            print('  File found for '+pauli_string+' Imaginary Hadamard tests with  observables =', parameters['observables'])
-                else:
-                    name = make_filename(parameters, key=time_series_name, T=T)
-                    
-                    if time_series_name == 'sparse': ML_QCELS=True
-                    else: ML_QCELS = False
-                    if time_series_name == 'gausts': gauss = gauss_distributed_ts[T]
-                    else: gauss = []
-
-                    filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
-                    if empty(filename):
-                        print('  Creating file for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
-                        trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Re', ML_QCELS=ML_QCELS, gauss=gauss)
-                        with open(filename, 'wb') as file:
-                            qpy.dump(trans_qcs, file)
-                    else:
-                        print('  File found for '+time_series_name+' Real Hadamard tests with observables =', parameters['observables'])
-                    filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
-                    if empty(filename):
-                        print('  Creating file for '+time_series_name+' Imaginary Hadamard tests with observables =', parameters['observables'])
-                        trans_qcs = transpile_hadamard_tests(parameters, T, backend, W='Im', ML_QCELS=ML_QCELS, gauss=gauss)
-                        with open(filename, 'wb') as file:
-                            qpy.dump(trans_qcs, file)
-                    else:
-                        print('  File found for Linear Imaginary Hadamard tests with observables =', parameters['observables'])
-        print()
-
-    # load/generate exp_vals data
-    if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
-        trans_qcs = []
-        # Dt = parameters['T']/parameters['observables']
-        for T in parameters['final_times']:
-            print('T =', T)
-            for run in range(reruns):
-                print('  Run', run+1)
+            for T in parameters['final_times']:
+                print('T =', T, 'observables =', observables)
                 for time_series_name in used_time_series:
                     if time_series_name == 'vqpets':
+                        pauli_strings = parameters['pauli_strings']
+                        name = make_filename(parameters, T=T, obs=observables)
                         for pauli_string in pauli_strings.paulis:
                             pauli_string = str(pauli_string)
-                            name = make_filename(parameters, T=T)
                             filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
-                            print('      Loading data from file for '+pauli_string+' Real Hadamard tests.')
-                            with open(filename, 'rb') as file:
-                                qcs = qpy.load(file)
-                                trans_qcs.append(qcs)
-                            filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
-                            print('      Loading data from file for '+pauli_string+' Imaginary Hadamard tests.')
-                            with open(filename, 'rb') as file:
-                                qcs = qpy.load(file)
-                                trans_qcs.append(qcs)
-                    else:
-                        print('      Loading data from file for '+time_series_name+' Real Hadamard tests.')
-                        name = make_filename(parameters, key=time_series_name, T=T)
-                        filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
-                        with open(filename, 'rb') as file:
-                            qcs = qpy.load(file)
-                            trans_qcs.append(qcs)
-                        print('      Loading data from file for '+time_series_name+' Imaginary Hadamard tests.')
-                        filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
-                        with open(filename, 'rb') as file:
-                            qcs = qpy.load(file)
-                            trans_qcs.append(qcs)
-        print()
-        trans_qcs = sum(trans_qcs, []) # flatten list
-        sampler = Sampler(backend)
-        if parameters['comp_type'] == 'H':
-            job_correct_size = False
-            jobs_tqcs = [trans_qcs]
-            # Divide the circuits into multiple smaller jobs
-            while(not job_correct_size):
-                jobs = []
-                job_correct_size = True
-                for job_tqcs in jobs_tqcs:
-                    print('Total shots in job:', len(job_tqcs)*parameters['shots'])
-                    if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
-                        job_correct_size = False
-                if job_correct_size:
-                    try:
-                        for tqcs in jobs_tqcs:
-                            jobs.append(sampler.run(tqcs, shots = parameters['shots']))
-                    except:
-                        job_correct_size = False
-                if not job_correct_size:
-                    print('Job too large, splitting in half (max '+str(len(jobs_tqcs[0])//2)+' circuits per job)... ')
-                    temp = []
-                    for tqcs in jobs_tqcs:
-                        half = int(len(tqcs)/2)
-                        temp.append(tqcs[:half])
-                        temp.append(tqcs[half:])
-                    jobs_tqcs = temp
-            print('Saving Parameters.')
-            batch_id = jobs[0].job_id()
-            job_ids = [job.job_id() for job in jobs]
-            try: os.mkdir('0-Data/Jobs')
-            except: pass
-            with open('0-Data/Jobs/'+batch_id+'.pkl', 'wb') as file:
-                pickle.dump([parameters, job_ids], file)
-            print('Sending Job.')
-        if parameters['comp_type'] == 'S':
-            print('Running Circuits.')
-            jobs = [sampler.run(trans_qcs, shots=parameters['shots'])]
-        results = []
-        for job in jobs:
-            for result in job.result():
-                results.append(result)
-        print('Data recieved.')
-        print()
-    elif parameters['comp_type'] == 'J':
-        results = []
-        service = create_service()
-        for job_id in job_ids:
-            print('Loading data from job:', job_id)
-            job = service.job(job_id)
-            for result in job.result():
-                results.append(result)
-            print('Loaded data from job:', job_id)
-        create_hamiltonian(parameters)
-        print()
-    
-    all_exp_vals = {}
-    if parameters['comp_type'] == 'C':
-        print('Generating Data')
-        all_exp_vals = generate_exp_vals(parameters, gausses=gauss_distributed_ts)
-    elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
-        if 'linear' in used_time_series: all_exp_vals['linear'] = []
-        if 'sparse' in used_time_series: all_exp_vals['sparse'] = []
-        if 'gausts' in used_time_series: all_exp_vals['gausts'] = []
-        if 'vqpets' in used_time_series: all_exp_vals['vqpets'] = []
-        observables = parameters['observables']
-        num_timesteps = int(observables/2)
-        shots = parameters['shots']
-        
-        print('Starting expecation value Calculation for', len(results), 'circuit results.')
-        
-        
-        for i in range(len(used_time_series)):
-            all_exp_vals[used_time_series[i]] = {}
-            for t_index in range(len(parameters['final_times'])):
-                T = parameters['final_times'][t_index]
-                all_exp_vals[used_time_series[i]][T] = []
-                for r in range(reruns):
-                    if 'VQPE' in parameters['algorithms']:
-                        if parameters['const_obs']:
-                            if parameters['algorithms'] == ['VQPE']:
-                                index = i*observables//((len(pauli_strings)+1))+r*observables
+                            if empty(filename):
+                                print('  Creating file for '+pauli_string+' Real Hadamard tests with observables =', observables)
+                                trans_qcs = transpile_hadamard_tests(parameters, T, observables, backend, W='Real', pauli_string=pauli_string)
+                                with open(filename, 'wb') as file:
+                                    qpy.dump(trans_qcs, file)
                             else:
-                                index = i*observables
-                                # adjusts the index to account for the fact that the VQPE time series data is slightly shorter
-                                index += (r+t_index*reruns)*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
-                        else:
-                            index = (i+(r+t_index*reruns)*(len(used_time_series)+len(pauli_strings)-1))*observables
+                                print('  File found for '+pauli_string+' Imaginary Hadamard tests with observables =', observables)
+                            filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
+                            if empty(filename):
+                                print('  Creating file for '+pauli_string+' Imaginary Hadamard test s with observables =', observables)
+                                trans_qcs = transpile_hadamard_tests(parameters, T, observables, backend, W='Im', pauli_string=pauli_string)
+                                with open(filename, 'wb') as file:
+                                    qpy.dump(trans_qcs, file)
+                            else:
+                                print('  File found for '+pauli_string+' Imaginary Hadamard tests with  observables =', observables)
                     else:
-                        index = (i+r*len(used_time_series)+t_index*reruns*len(used_time_series))*observables
-                    print('Calculating expectation values for ',used_time_series[i], 'for run' ,str(r+1)+'/'+str(reruns),'for time T =', str(parameters['final_times'][t_index])+'.')
-                    if used_time_series[i] == 'sparse':
-                        list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
-                        time_steps = set()
-                        iteration = 0
-                        time_steps_per_itr = parameters['ML_QCELS_time_steps']
-                        while len(time_steps) < num_timesteps:
-                            for j in range(time_steps_per_itr):
-                                time = 2**iteration*j
-                                if time in time_steps: continue
-                                time_steps.add(time)
-                            iteration+=1
-                        time_steps = np.sort(list(time_steps))
-                        exp_vals = {}
-                        for j in range(len(time_steps)):
-                            exp_vals[time_steps[j]] = list_exp_vals[j]
-                    elif used_time_series[i] == 'vqpets':
-                        pauli_strings = parameters['pauli_strings']
-                        if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
-                        else: vqpe_obs = observables
-                        Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
-                        for p in range(len(pauli_strings)):
-                            start = index+p*vqpe_obs
-                            pauli_string = pauli_strings.paulis[p]
-                            coeff = pauli_strings.coeffs[p]
-                            exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
-                            Hexp_vals += [k*coeff for k in exp_vals]
-                        exp_vals = Hexp_vals
-                    elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
-                        exp_vals = calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots)
-                    elif used_time_series[i] == 'gausts':
-                        exp_vals = {}
-                        tmp = calc_all_exp_vals(results[index:index+observables], shots)
-                        # print(len(results[index:index+observables]), tmp)
-                        for j in range(len(tmp)):
-                            exp_vals[gauss_distributed_ts[T][j]] = tmp[j]
-                    else:
-                        exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
-                    
-                    all_exp_vals[used_time_series[i]][T].append(exp_vals)
-    print()
+                        name = make_filename(parameters, key=time_series_name, T=T, obs=observables)
+                        
+                        if time_series_name == 'sparse': ML_QCELS=True
+                        else: ML_QCELS = False
+                        if time_series_name == 'gausts': gauss = gauss_distributed_ts[T]
+                        else: gauss = []
 
-    # save expectation values
-    try: os.mkdir('0-Data/Expectation_Values')
-    except: pass
-    for dataset_name in all_exp_vals.keys():
-        for T in parameters['final_times']:
-            filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=dataset_name, T=T)+'.pkl'
-            assert(len(all_exp_vals[dataset_name][T])>=reruns)
-            with open(filename, 'wb') as file:
-                pickle.dump(all_exp_vals[dataset_name][T], file)
-            print('Saved expectation values into file.', '('+filename+')')
+                        filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
+                        if empty(filename):
+                            print('  Creating file for '+time_series_name+' Real Hadamard tests with observables =', observables)
+                            trans_qcs = transpile_hadamard_tests(parameters, T, observables, backend, W='Re', ML_QCELS=ML_QCELS, gauss=gauss)
+                            with open(filename, 'wb') as file:
+                                qpy.dump(trans_qcs, file)
+                        else:
+                            print('  File found for '+time_series_name+' Real Hadamard tests with observables =', observables)
+                        filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
+                        if empty(filename):
+                            print('  Creating file for '+time_series_name+' Imaginary Hadamard tests with observables =', observables)
+                            trans_qcs = transpile_hadamard_tests(parameters, T, observables, backend, W='Im', ML_QCELS=ML_QCELS, gauss=gauss)
+                            with open(filename, 'wb') as file:
+                                qpy.dump(trans_qcs, file)
+                        else:
+                            print('  File found for Linear Imaginary Hadamard tests with observables =', observables)
+            print()
+
+        # load/generate exp_vals data
+        if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
+            trans_qcs = []
+            for T in parameters['final_times']:
+                print('T =', T, 'observables =', observables)
+                for run in range(reruns):
+                    print('  Run', run+1)
+                    for time_series_name in used_time_series:
+                        if time_series_name == 'vqpets':
+                            for pauli_string in pauli_strings.paulis:
+                                pauli_string = str(pauli_string)
+                                name = make_filename(parameters, T=T, obs=observables)
+                                filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Re.qpy'
+                                print('      Loading data from file for '+pauli_string+' Real Hadamard tests.')
+                                with open(filename, 'rb') as file:
+                                    qcs = qpy.load(file)
+                                    trans_qcs.append(qcs)
+                                filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
+                                print('      Loading data from file for '+pauli_string+' Imaginary Hadamard tests.')
+                                with open(filename, 'rb') as file:
+                                    qcs = qpy.load(file)
+                                    trans_qcs.append(qcs)
+                        else:
+                            print('      Loading data from file for '+time_series_name+' Real Hadamard tests.')
+                            name = make_filename(parameters, key=time_series_name, T=T, obs=observables)
+                            filename = '0-Data/Transpiled_Circuits/'+name+'_Re.qpy'
+                            with open(filename, 'rb') as file:
+                                qcs = qpy.load(file)
+                                trans_qcs.append(qcs)
+                            print('      Loading data from file for '+time_series_name+' Imaginary Hadamard tests.')
+                            filename = '0-Data/Transpiled_Circuits/'+name+'_Im.qpy'
+                            with open(filename, 'rb') as file:
+                                qcs = qpy.load(file)
+                                trans_qcs.append(qcs)
+            print()
+            trans_qcs = sum(trans_qcs, []) # flatten list
+            sampler = Sampler(backend)
+            if parameters['comp_type'] == 'H':
+                job_correct_size = False
+                jobs_tqcs = [trans_qcs]
+                # Divide the circuits into multiple smaller jobs
+                while(not job_correct_size):
+                    jobs = []
+                    job_correct_size = True
+                    for job_tqcs in jobs_tqcs:
+                        print('Total shots in job:', len(job_tqcs)*parameters['shots'])
+                        if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
+                            job_correct_size = False
+                    if job_correct_size:
+                        try:
+                            for tqcs in jobs_tqcs:
+                                jobs.append(sampler.run(tqcs, shots = parameters['shots']))
+                        except:
+                            job_correct_size = False
+                    if not job_correct_size:
+                        print('Job too large, splitting in half (max '+str(len(jobs_tqcs[0])//2)+' circuits per job)... ')
+                        temp = []
+                        for tqcs in jobs_tqcs:
+                            half = int(len(tqcs)/2)
+                            temp.append(tqcs[:half])
+                            temp.append(tqcs[half:])
+                        jobs_tqcs = temp
+                print('Saving Parameters.')
+                batch_id = jobs[0].job_id()
+                job_ids = [job.job_id() for job in jobs]
+                try: os.mkdir('0-Data/Jobs')
+                except: pass
+                with open('0-Data/Jobs/'+batch_id+'.pkl', 'wb') as file:
+                    pickle.dump([parameters, job_ids], file)
+                print('Sending Job.')
+            if parameters['comp_type'] == 'S':
+                print('Running Circuits.')
+                jobs = [sampler.run(trans_qcs, shots=parameters['shots'])]
+            results = []
+            for job in jobs:
+                for result in job.result():
+                    results.append(result)
+            print('Data recieved.')
+            print()
+        elif parameters['comp_type'] == 'J':
+            results = []
+            service = create_service()
+            for job_id in job_ids:
+                print('Loading data from job:', job_id)
+                job = service.job(job_id)
+                for result in job.result():
+                    results.append(result)
+                print('Loaded data from job:', job_id)
+            create_hamiltonian(parameters)
+            print()
+        
+        all_exp_vals = {}
+        if parameters['comp_type'] == 'C':
+            print('Generating Data')
+            all_exp_vals = generate_exp_vals(parameters, observables, gausses=gauss_distributed_ts)
+        elif parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
+            if 'linear' in used_time_series: all_exp_vals['linear'] = []
+            if 'sparse' in used_time_series: all_exp_vals['sparse'] = []
+            if 'gausts' in used_time_series: all_exp_vals['gausts'] = []
+            if 'vqpets' in used_time_series: all_exp_vals['vqpets'] = []
+            num_timesteps = int(observables/2)
+            shots = parameters['shots']
+            
+            print('Starting expecation value calculation for', len(results), 'circuit results.')
+            
+            
+            for i in range(len(used_time_series)):
+                all_exp_vals[used_time_series[i]] = {}
+                for t_index in range(len(parameters['final_times'])):
+                    T = parameters['final_times'][t_index]
+                    all_exp_vals[used_time_series[i]][T] = []
+                    for r in range(reruns):
+                        if 'VQPE' in parameters['algorithms']:
+                            if parameters['const_obs']:
+                                if parameters['algorithms'] == ['VQPE']:
+                                    index = i*observables//((len(pauli_strings)+1))+r*observables
+                                else:
+                                    index = i*observables
+                                    # adjusts the index to account for the fact that the VQPE time series data is slightly shorter
+                                    index += (r+t_index*reruns)*((len(used_time_series)-1)*observables + observables//((len(pauli_strings)+1))*len(pauli_strings))
+                            else:
+                                index = (i+(r+t_index*reruns)*(len(used_time_series)+len(pauli_strings)-1))*observables
+                        else:
+                            index = (i+r*len(used_time_series)+t_index*reruns*len(used_time_series))*observables
+                        print('Calculating expectation values for '+used_time_series[i]+' for run' ,str(r+1)+'/'+str(reruns),'for time T =', str(parameters['final_times'][t_index])+'.')
+                        if used_time_series[i] == 'sparse':
+                            list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
+                            time_steps = set()
+                            iteration = 0
+                            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+                            while len(time_steps) < num_timesteps:
+                                for j in range(time_steps_per_itr):
+                                    time = 2**iteration*j
+                                    if time in time_steps: continue
+                                    time_steps.add(time)
+                                iteration+=1
+                            time_steps = np.sort(list(time_steps))
+                            exp_vals = {}
+                            for j in range(len(time_steps)):
+                                exp_vals[time_steps[j]] = list_exp_vals[j]
+                        elif used_time_series[i] == 'vqpets':
+                            pauli_strings = parameters['pauli_strings']
+                            if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
+                            else: vqpe_obs = observables
+                            Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)
+                            for p in range(len(pauli_strings)):
+                                start = index+p*vqpe_obs
+                                pauli_string = pauli_strings.paulis[p]
+                                coeff = pauli_strings.coeffs[p]
+                                exp_vals = calc_all_exp_vals(results[start:start+vqpe_obs], shots)
+                                Hexp_vals += [k*coeff for k in exp_vals]
+                            exp_vals = Hexp_vals
+                        elif parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
+                            exp_vals = calc_all_exp_vals(results[index:index+observables//(len(pauli_strings)+1)], shots)
+                        elif used_time_series[i] == 'gausts':
+                            exp_vals = {}
+                            tmp = calc_all_exp_vals(results[index:index+observables], shots)
+                            # print(len(results[index:index+observables]), tmp)
+                            for j in range(len(tmp)):
+                                exp_vals[gauss_distributed_ts[T][j]] = tmp[j]
+                        else:
+                            exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
+                        assert(len(exp_vals)>0)
+                        all_exp_vals[used_time_series[i]][T].append(exp_vals)
+                    assert(len(all_exp_vals[used_time_series[i]][T])>0)    
+        print()
+
+        # save expectation values
+        try: os.mkdir('0-Data/Expectation_Values')
+        except: pass
+        for dataset_name in all_exp_vals.keys():
+            for T in parameters['final_times']:
+                filename = '0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=dataset_name, T=T, obs=observables)+'.pkl'
+                with open(filename, 'wb') as file:
+                    pickle.dump(all_exp_vals[dataset_name][T], file)
+                print('Saved expectation values into file.', '('+filename+')')
     
 
 def calc_all_exp_vals(results, shots):
