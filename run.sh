@@ -1,12 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name hardware_two_sites
+#SBATCH --job-name two_site_sim
 #SBATCH -C cpu
 #SBATCH -t 02:00:00
 #SBATCH -q regular
-#SBATCH --output logs/batch.out
-#SBATCH --error logs/batch.err
+#SBATCH --nodes 1
+#SBATCH --output logs/sim2site.out
+#SBATCH --error logs/sim2site.err
 
-cd $PSCRATCH
-cd Phase-Estimation-Algorithms-Comparision
-source ../Qiskit/bin/activate
-python Comparision.py
+source ../Qiskit-env/bin/activate
+python Comparison.py

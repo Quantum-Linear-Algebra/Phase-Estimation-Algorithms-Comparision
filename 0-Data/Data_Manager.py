@@ -19,8 +19,8 @@ from qiskit.circuit.library import UnitaryGate
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 
-from qiskit_nature.second_q.drivers import PySCFDriver
-from qiskit_nature.second_q.mappers import ParityMapper
+# from qiskit_nature.second_q.drivers import PySCFDriver
+# from qiskit_nature.second_q.mappers import ParityMapper
 
 from QMEGS import generate_ts_distribution
 from Parameters import check_contains_linear
@@ -606,7 +606,7 @@ def run(parameters, returns):
                                 print('  File found for '+pauli_string+' Imaginary Hadamard tests with observables =', observables)
                             filename = '0-Data/Transpiled_Circuits/'+pauli_string+'_'+name+'_Im.qpy'
                             if empty(filename):
-                                print('  Creating file for '+pauli_string+' Imaginary Hadamard test s with observables =', observables)
+                                print('  Creating file for '+pauli_string+' Imaginary Hadamard tests with observables =', observables)
                                 trans_qcs = transpile_hadamard_tests(parameters, T, observables, backend, W='Im', pauli_string=pauli_string)
                                 with open(filename, 'wb') as file:
                                     qpy.dump(trans_qcs, file)
@@ -672,49 +672,10 @@ def run(parameters, returns):
                             with open(filename, 'rb') as file:
                                 qcs = qpy.load(file)
                                 trans_qcs.append(qcs)
-            print()
+            
             trans_qcs = sum(trans_qcs, []) # flatten list
-            sampler = Sampler(backend)
-            if parameters['comp_type'] == 'H':
-                job_correct_size = False
-                jobs_tqcs = [trans_qcs]
-                # Divide the circuits into multiple smaller jobs
-                while(not job_correct_size):
-                    jobs = []
-                    job_correct_size = True
-                    for job_tqcs in jobs_tqcs:
-                        print('Total shots in job:', len(job_tqcs)*parameters['shots'])
-                        if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
-                            job_correct_size = False
-                    if job_correct_size:
-                        try:
-                            for tqcs in jobs_tqcs:
-                                jobs.append(sampler.run(tqcs, shots = parameters['shots']))
-                        except:
-                            job_correct_size = False
-                    if not job_correct_size:
-                        print('Job too large, splitting in half (max '+str(len(jobs_tqcs[0])//2)+' circuits per job)... ')
-                        temp = []
-                        for tqcs in jobs_tqcs:
-                            half = int(len(tqcs)/2)
-                            temp.append(tqcs[:half])
-                            temp.append(tqcs[half:])
-                        jobs_tqcs = temp
-                print('Saving Parameters.')
-                batch_id = jobs[0].job_id()
-                job_ids = [job.job_id() for job in jobs]
-                try: os.mkdir('0-Data/Jobs')
-                except: pass
-                with open('0-Data/Jobs/'+batch_id+'.pkl', 'wb') as file:
-                    pickle.dump([parameters, job_ids], file)
-                print('Sending Job.')
-            if parameters['comp_type'] == 'S':
-                print('Running Circuits.')
-                jobs = [sampler.run(trans_qcs, shots=parameters['shots'])]
-            results = []
-            for job in jobs:
-                for result in job.result():
-                    results.append(result)
+            print()
+            results = get_results(parameters, trans_qcs, backend)
             print('Data recieved.')
             print()
         elif parameters['comp_type'] == 'J':
@@ -814,7 +775,56 @@ def run(parameters, returns):
                 with open(filename, 'wb') as file:
                     pickle.dump(all_exp_vals[dataset_name][T], file)
                 print('Saved expectation values into file.', '('+filename+')')
-    
+
+def get_results(parameters, trans_qcs, backend, retries=0):
+    try:
+        sampler = Sampler(backend)
+        if parameters['comp_type'] == 'H':
+            job_correct_size = False
+            jobs_tqcs = [trans_qcs]
+            # Divide the circuits into multiple smaller jobs
+            while(not job_correct_size):
+                jobs = []
+                job_correct_size = True
+                for job_tqcs in jobs_tqcs:
+                    print('Total shots in job:', len(job_tqcs)*parameters['shots'])
+                    if len(job_tqcs)*parameters['shots']>=10000000: # shot limit
+                        job_correct_size = False
+                if job_correct_size:
+                    try:
+                        for tqcs in jobs_tqcs:
+                            jobs.append(sampler.run(tqcs, shots = parameters['shots']))
+                    except:
+                        job_correct_size = False
+                if not job_correct_size:
+                    print('Job too large, splitting in half (max '+str(len(jobs_tqcs[0])//2)+' circuits per job)... ')
+                    temp = []
+                    for tqcs in jobs_tqcs:
+                        half = int(len(tqcs)/2)
+                        temp.append(tqcs[:half])
+                        temp.append(tqcs[half:])
+                    jobs_tqcs = temp
+            print('Saving Parameters.')
+            batch_id = jobs[0].job_id()
+            job_ids = [job.job_id() for job in jobs]
+            try: os.mkdir('0-Data/Jobs')
+            except: pass
+            with open('0-Data/Jobs/'+batch_id+'.pkl', 'wb') as file:
+                pickle.dump([parameters, job_ids], file)
+            print('Sending Job.')
+        if parameters['comp_type'] == 'S':
+            print('Running Circuits.')
+            jobs = [sampler.run(trans_qcs, shots=parameters['shots'])]
+        results = []
+        for job in jobs:
+            for result in job.result():
+                results.append(result) 
+        return results
+    except Exception as e:
+        print(e)
+        if retries<100:
+            get_results(parameters, trans_qcs, backend, retries=retries+1)
+        assert(False)
 
 def calc_all_exp_vals(results, shots):
     num_timesteps = int(len(results)/2) 

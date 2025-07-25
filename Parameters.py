@@ -117,6 +117,8 @@ def check(parameters):
         total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
         if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
             parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
+            for i in range(len(parameters['final_observables'])):
+                parameters['final_observables'][i] = int(ceil(parameters['final_observables'][i]/total_num_time_series)*total_num_time_series)
     if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
         # Approximate what Hartree-Fock would estimate
         if 'QCELS_lambda_prior' in parameters:
