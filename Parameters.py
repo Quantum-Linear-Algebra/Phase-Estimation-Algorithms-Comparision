@@ -39,7 +39,7 @@ def check(parameters):
         parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'real_E_0', 'scaled_E_0', 'reruns', 'sv', 'shots']
+        used_variables = ['comp_type', 'algorithms', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
         parameters['T'] = float(parameters['T'])
         assert(parameters['T']>0)
         if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
@@ -78,6 +78,9 @@ def check(parameters):
         sys.path.append('0-Data')
         from Data_Manager import create_hamiltonian, make_overlap
         H,real_E_0 =create_hamiltonian(parameters)
+        used_variables.append('Hamiltonian')
+        parameters['Hamiltonian'] = H
+        used_variables.append('real_E_0')
         parameters['real_E_0'] = real_E_0
         energy,eig_vec = eigh(H)
         if 'overlap' in parameters:
@@ -92,6 +95,7 @@ def check(parameters):
                 # print(parameters['sv']@eig_vec[:,i])
             # assert(parameters['sv']@eig_vec[:,0]==parameters['distribution'][0]) 
         else: parameters['sv'] = eig_vec[:,0]
+        used_variables.append('scaled_E_0')
         parameters['scaled_E_0'] = energy[0]
         
         if 'const_obs' not in parameters:
@@ -202,14 +206,13 @@ def check(parameters):
     # backend setup
     if parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
         backend = create_hardware_backend()
-    else:
+    elif parameters['comp_type'] == 'C':
         backend = AerSimulator(noise_model = NoiseModel())
-    returns['backend'] = backend
+    parameters['backend'] = backend
     print('Parameters are setup:')
     for key in parameters.keys():
         print('  '+key+':', parameters[key])
     print()
-    return returns
 
 # define a system for naming files
 def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
@@ -217,8 +220,9 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     
     string = ''
     if key != '': string += key+'_'
-    string += 'comp='+parameters['comp_type']+'_sys='+system
-    string +='_n='+str(parameters['sites'])
+    if parameters['comp_type'] == 'C': string += 'comp='+parameters['backend'].name
+    else: string += 'comp='+parameters['comp_type']
+    string +='_sys='+system+'_n='+str(parameters['sites'])
     if system=='TFI':
         if parameters['comp_type'] != 'C':
             method_for_model = parameters['method_for_model']

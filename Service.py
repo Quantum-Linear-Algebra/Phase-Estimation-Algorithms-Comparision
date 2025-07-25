@@ -17,11 +17,11 @@ def create_hardware_backend():
     Returns:
      - backend: the specificed backend as a BackendV2 Qiskit Object
     '''
-    filename = "Service.pkl" 
+    hardware_name = input("Enter Hardware Backend Name:")
+    filename = "Service_"+hardware_name+".pkl" 
     if empty(filename):
         token    = input("Enter API Token:")
         instance = input("Enter Instance:")
-        hardware_name = input("Enter Hardware Backend Name:")
         with open(filename, 'wb') as file:
             pickle.dump([token, instance, hardware_name], file)
     else:
@@ -47,11 +47,11 @@ def create_service():
     Returns:
      - service: the specificed service as a Qiskit Service Object
     '''
-    filename = "Service.pkl" 
+    hardware_name = input("Enter Hardware Backend Name:")
+    filename = "Service_"+hardware_name+".pkl" 
     if empty(filename):
         token    = input("Enter API Token:")
         instance = input("Enter Instance:")
-        hardware_name = input("Enter Hardware Backend Name:")
         with open(filename, 'wb') as file:
             pickle.dump([token, instance, hardware_name], file)
     else:

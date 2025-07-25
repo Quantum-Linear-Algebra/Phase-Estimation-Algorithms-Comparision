@@ -14,7 +14,7 @@ from qiskit import transpile
 from qiskit import qpy
 from qiskit.circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.quantum_info import Pauli
-from qiskit.circuit.library import UnitaryGate
+from qiskit.circuit.library import UnitaryGate, StatePreparation
 
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
@@ -266,14 +266,13 @@ def run_hadamard_tests(controlled_U, statevector, W = 'Re', shots=100):
     Returns:
      - re: the real part of expection value measured
     '''
-
     aer_sim = AerSimulator(noise_model=NoiseModel())
     trans_qc = create_hadamard_tests(aer_sim, controlled_U, statevector, W = W)
     counts = aer_sim.run(trans_qc, shots = shots).result().get_counts()
     exp_val = calculate_exp_vals(counts, shots)
     return exp_val
 
-def create_hadamard_tests(backend, controlled_U, statevector, W = 'Re'):
+def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = 'Re', modified=True):
     '''
     Creates a transpiled hadamard tests for the specificed backend.
 
@@ -287,15 +286,39 @@ def create_hadamard_tests(backend, controlled_U, statevector, W = 'Re'):
     Returns:
      - trans_qc: the transpiled circuit
     '''
-    
+    qubits = parameters['sites']
     qr_ancilla = QuantumRegister(1)
-    qr_eigenstate = QuantumRegister(controlled_U.num_qubits-1)
+    qr_eigenstate = QuantumRegister(qubits)
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    # qc.h(qr_eigenstate)
-    qc.initialize(statevector, qr_eigenstate)
-    qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
+    if modified:
+        qc_init = QuantumCircuit(qr_ancilla, qr_eigenstate)
+        if parameters['system'] == 'TFI':
+            if parameters['g'] < 1:
+                # construct GHZ state
+                qc_init.ch(qr_ancilla,qr_eigenstate[0])
+                for qubit in range(len(qr_eigenstate)-1):
+                    qc_init.cx(qubit, qubit+1)
+            else:
+                # construct even superposition
+                for qubit in range(1, qubits+1):
+                    qc_init.ch(qr_ancilla, qubit)
+        else:
+            gate = StatePreparation(statevector)
+            qc_init = qc_init.compose(gate.control(annotated="yes"))
+        
+        qc = qc.compose(qc_init)
+        qc = qc.compose(U, range(1, qubits+1))
+        qc.x(0)
+        qc = qc.compose(qc_init)
+        qc.x(0)
+        phase = np.log(complex(parameters['Hamiltonian'][0,0])).imag
+        qc.rz(phase, 0)
+    else:
+        qc.initialize(statevector, qr_eigenstate)
+        controlled_U = U.control(annotated="yes")
+        qc.append(controlled_U, qargss = [qr_ancilla[:]] + qr_eigenstate[:] )
     if W[0:2].upper() == 'IM' or W[0].upper() == 'S': qc.sdg(qr_ancilla)
     qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
@@ -381,7 +404,7 @@ def hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=False, paul
     else:
         time_steps = [i*T/observables for i in range(num_timesteps)]
     
-    gates = []
+    Unitaries = []
     if use_F3C:
         coupling = 1
         scaling = parameters['scaling']
@@ -390,20 +413,19 @@ def hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=False, paul
         trotter = parameters['trotter']
         if unordered_time_series:
             for time_step in time_steps:
-                gates.append(generate_TFIM_gates(sites, 1, time_step, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
+                Unitaries.append(generate_TFIM_gates(sites, 1, time_step, g, scaling, coupling, trotter, '../f3cpp', include_0 = False)[0])
         else:
-            gates = generate_TFIM_gates(sites, num_timesteps, T/observables, g, scaling, coupling, trotter, '../f3cpp')
+            Unitaries = generate_TFIM_gates(sites, num_timesteps, T/observables, g, scaling, coupling, trotter, '../f3cpp')
     else:
         ham,_ = create_hamiltonian(parameters)
-        gates = []
+        Unitaries = []
         for i in time_steps:
             mat = closest_exp_unitary(ham,i)
             if VQPE:
                 pauli = Pauli(pauli_string).to_matrix()
                 mat = pauli@mat
-            controlled_U = UnitaryGate(mat).control(annotated="yes")
-            gates.append(controlled_U)
-    return gates, statevector
+            Unitaries.append(UnitaryGate(mat))
+    return Unitaries, statevector
 
 def generate_exp_vals(parameters, observables, gausses={}):
     '''
@@ -488,9 +510,9 @@ def transpile_hadamard_tests(parameters, T, observables, backend, W='Re', ML_QCE
     '''
 
     tqcs = []
-    gates, statevector = hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
-    for controlled_U in gates:
-        tqcs.append(create_hadamard_tests(backend, controlled_U, statevector, W=W))
+    Unitaries, statevector = hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=ML_QCELS, pauli_string=pauli_string, gauss=gauss)
+    for U in Unitaries:
+        tqcs.append(create_hadamard_tests(parameters, backend, U, statevector, W=W))
     return tqcs
 
 def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, location, include_0 = True):
@@ -538,7 +560,7 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
         os.remove("TFIM_Operators/garbage.txt")
         os.remove("TFIM_Operators/Operator_Generator.ini")
         qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
-        gate = qc.to_gate(label = "TFIM 0").control()
+        gate = qc.to_gate(label = "TFIM 0")
         gates.append(gate)
         os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
         steps -= 1
@@ -560,14 +582,14 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
     for step in range(1, steps+1):
         if step % trotter == 0:
             qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step)+".qasm")
-            gate = qc.to_gate(label = "TFIM "+str(step)).control()
+            gate = qc.to_gate(label = "TFIM "+str(step))
             gates.append(gate)
         os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step)+".qasm")
     os.rmdir("TFIM_Operators")
     return gates
 
-def run(parameters, returns):
-    backend = returns['backend']
+def run(parameters):
+    if parameters['comp_type'] != 'C': backend = parameters['backend']
     reruns = parameters['reruns']
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
 
