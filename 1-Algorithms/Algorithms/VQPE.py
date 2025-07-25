@@ -86,7 +86,7 @@ def UVQPE_ground_energy(exp_vals, Dt,  svd_threshold, skipping=1, show_steps = F
     observables = []
     for i in  range(len(exp_vals)):
         if i%skipping!=skipping-1: continue
-        if i == 0: est_E_0s.append(0);continue
+        if i == 0: continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = UVQPE(exp_vals[:i+1], Dt, svd_threshold, show_steps=show_steps)
         est_E_0s.append(eig_vals[0])
@@ -98,7 +98,7 @@ def VQPE_ground_energy(exp_vals, Hexp_vals, num_pauli_string, svd_threshold, ski
     observables = []
     for i in  range(len(exp_vals)):
         if i%skipping!=skipping-1: continue
-        if i == 0: est_E_0s.append(0); continue
+        if i == 0: continue
         if show_steps: print('\nIteration:', i+1)
         eig_vals = VQPE(exp_vals[:i+1], Hexp_vals[:i+1], svd_threshold, show_steps=show_steps)
         est_E_0s.append(eig_vals[0])

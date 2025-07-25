@@ -20,11 +20,11 @@ parameters = {}
 parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables']  = 100
 parameters['sites']        = 2
-parameters['T']            = 200
+parameters['T']            = 100
 parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
-parameters['overlap']      = .5   # the initial state overlap
+parameters['overlap']      = 1   # the initial state overlap
 # parameters['distribution'] = [.5]+[.5/(2^2-1)]*(2^2-1)
 
 # SPECIFIC SYSTEM TYPE
@@ -48,7 +48,7 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # Algorithm Paramters
-parameters['algorithms']    = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'QMEGS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
+parameters['algorithms']    = ['ODMD'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
 parameters['const_obs']     = False # if False then constant time
 parameters['num_time_sims'] = 1
 parameters['num_obs_sims']  = 1
@@ -80,5 +80,5 @@ parameters['QMEGS_full_observable'] = True
 if __name__ == "__main__":
     param.check(parameters)
     data.run(parameters)
-    algo.run(parameters, skipping=100)
+    algo.run(parameters, skipping=1)
     graph_gen.run(parameters, show_std=True)

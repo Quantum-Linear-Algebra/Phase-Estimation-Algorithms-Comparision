@@ -219,7 +219,7 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     
     string = ''
     if key != '': string += key+'_'
-    if parameters['comp_type'] == 'C': string += 'comp='+parameters['backend'].name
+    if parameters['comp_type'] != 'C': string += 'comp='+parameters['backend'].name
     else: string += 'comp='+parameters['comp_type']
     string +='_sys='+system+'_n='+str(parameters['sites'])
     if system=='TFI':

@@ -298,7 +298,7 @@ def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = '
             if parameters['g'] < 1:
                 # construct GHZ state
                 qc_init.ch(qr_ancilla,qr_eigenstate[0])
-                for qubit in range(len(qr_eigenstate)-1):
+                for qubit in range(1, qubits):
                     qc_init.cx(qubit, qubit+1)
             else:
                 # construct even superposition
@@ -313,15 +313,18 @@ def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = '
         qc.x(0)
         qc = qc.compose(qc_init)
         qc.x(0)
-        phase = np.log(complex(parameters['Hamiltonian'][0,0])).imag
-        qc.rz(phase, 0)
+
+        phase = np.log(complex(U.to_matrix()[0][0])).imag
+        qc.rz(phase, qr_ancilla)
     else:
         qc.initialize(statevector, qr_eigenstate)
         controlled_U = U.control(annotated="yes")
-        qc.append(controlled_U, qargss = [qr_ancilla[:]] + qr_eigenstate[:] )
+        qc.append(controlled_U, qargs = [qr_ancilla] + qr_eigenstate[:])
+    
     if W[0:2].upper() == 'IM' or W[0].upper() == 'S': qc.sdg(qr_ancilla)
     qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
+    print(qc)
     trans_qc = transpile(qc, backend, optimization_level=3)
     return trans_qc
 
