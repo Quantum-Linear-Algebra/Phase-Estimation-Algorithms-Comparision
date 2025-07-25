@@ -205,10 +205,9 @@ def check(parameters):
 
     # backend setup
     if parameters['comp_type'] == 'H' or parameters['comp_type'] == 'J':
-        backend = create_hardware_backend()
-    elif parameters['comp_type'] == 'C':
-        backend = AerSimulator(noise_model = NoiseModel())
-    parameters['backend'] = backend
+        parameters['backend'] = create_hardware_backend()
+    elif parameters['comp_type'] == 'S':
+        parameters['backend'] = AerSimulator(noise_model = NoiseModel())
     print('Parameters are setup:')
     for key in parameters.keys():
         print('  '+key+':', parameters[key])

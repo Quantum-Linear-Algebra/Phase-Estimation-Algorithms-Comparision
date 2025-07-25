@@ -17,7 +17,7 @@ parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
 
 # Generic Parameters
-parameters['comp_type']    = 'H' # OPTIONS: Classical, Simulation, Hardware, Job
+parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables']  = 100
 parameters['sites']        = 2
 parameters['T']            = 200
@@ -50,9 +50,9 @@ parameters['distance'] = .5
 # Algorithm Paramters
 parameters['algorithms']    = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'QMEGS', 'ML_QCELS'] # ALGORITHMS: 'ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS', 'ML_QCELS', 'QMEGS'
 parameters['const_obs']     = False # if False then constant time
-parameters['num_time_sims'] = 10
-parameters['num_obs_sims']  = 10
-parameters['reruns']        = 1
+parameters['num_time_sims'] = 1
+parameters['num_obs_sims']  = 1
+parameters['reruns']        = 10
 
 # Algorithm Specific Parameters
 parameters['ODMD_svd_threshold']    = 10**-1
@@ -78,7 +78,7 @@ parameters['QMEGS_full_observable'] = True
 
 
 if __name__ == "__main__":
-    returns = param.check(parameters)
-    data.run(parameters, returns)
+    param.check(parameters)
+    data.run(parameters)
     algo.run(parameters, skipping=100)
     graph_gen.run(parameters, show_std=True)
