@@ -212,6 +212,7 @@ def check(parameters):
     for key in parameters.keys():
         print('  '+key+':', parameters[key])
     print()
+    return returns
 
 # define a system for naming files
 def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
@@ -275,4 +276,3 @@ def check_contains_linear(algos):
 if __name__ == '__main__':
     from Comparison import parameters
     check(parameters)
-

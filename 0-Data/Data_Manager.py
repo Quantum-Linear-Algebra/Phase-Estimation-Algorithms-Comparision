@@ -591,7 +591,7 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, coupling, trotter, locati
     os.rmdir("TFIM_Operators")
     return gates
 
-def run(parameters):
+def run(parameters, returns):
     if parameters['comp_type'] != 'C': backend = parameters['backend']
     reruns = parameters['reruns']
     if parameters['comp_type'] == 'J': job_ids = returns['job_ids']
@@ -883,5 +883,5 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     returns = check(parameters)
-    run(parameters, returns)
-    # data.save_job_ids_params(parameters)
+    # run(parameters, returns)
+    save_job_ids_params(parameters)
