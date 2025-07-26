@@ -147,4 +147,4 @@ if __name__ == '__main__':
     from Comparison import parameters
     from Parameters import check
     check(parameters)
-    run(parameters, skipping=parameters['observables'])
+    run(parameters, skipping=1)

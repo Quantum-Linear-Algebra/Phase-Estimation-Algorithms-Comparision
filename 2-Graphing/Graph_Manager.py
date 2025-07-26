@@ -5,13 +5,12 @@ import sys, os
 from scipy.linalg import eigh
 from scipy.fft import fft, fftshift, fftfreq
 
-paths = '.', './0-Data'
+paths = '.', './0-Data', './1-Algorithms/Algorithms'
 for path in paths:
     if path not in sys.path:
         sys.path.append(path)
 
 from Parameters import make_filename, check_contains_linear
-from Data_Manager import create_hamiltonian
 from ODMD import fourier_filter_exp_vals
 
 def run(parameters, max_itr=-1, skipping=1, show_std=False):
@@ -66,7 +65,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                 print(e)
                 print('Failed to grab energy estimates for '+algo+'. Try recalculating the results of the algorithm.'); sys.exit(0)
 
-    H,real_E_0 = create_hamiltonian(parameters)
+    H = parameters['Hamiltonian']
+    real_E_0 = parameters['real_E_0']
     E,vecs = eigh(H)
     # real_E_0 = E[0]
     vecs = [vecs[:,i] for i in range(len(vecs))]
@@ -346,7 +346,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                 # === Plot the heatmap ===
                 from matplotlib.colors import LogNorm
                 fig, ax = plt.subplots(figsize=(8, 6))
-                cax = ax.imshow(heatmap, cmap='viridis', aspect='auto', norm=LogNorm(vmin=1, vmax=1e-16))
+                cax = ax.imshow(heatmap, cmap='coolwarm', aspect='auto', norm=LogNorm(vmin=1, vmax=1e-16))
                 ax.invert_yaxis()
                 # === Colorbar ===
                 cbar = fig.colorbar(cax, ax=ax)

@@ -8,4 +8,4 @@
 #SBATCH --error logs/sim2site.err
 
 source ../Qiskit-env/bin/activate
-python Comparison.py
+python Comparison.py "$ibm_fez"
