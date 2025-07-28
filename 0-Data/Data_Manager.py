@@ -388,12 +388,12 @@ def hadamard_tests_circuit_info(parameters, T, observables, ML_QCELS=False, paul
     use_F3C = not VQPE and parameters['system'] == 'TFI' and parameters['method_for_model']=="F"
     
     num_timesteps = int(observables/2)
-    if parameters['const_obs'] and (VQPE or parameters['algorithms'] == ['VQPE']): num_timesteps = int(num_timesteps/(len(parameters['pauli_strings'])+1))
+    if parameters['const_obs'] and (VQPE or parameters['algorithms'] == ['VQPE']): num_timesteps = int(num_timesteps/(len(parameters['algorithms']['VQPE']['pauli_strings'])+1))
 
     if ML_QCELS:
         time_steps = set()
         iteration = 0
-        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
         while len(time_steps) < num_timesteps:
             for i in range(time_steps_per_itr):
                 time = 2**iteration*i
@@ -473,7 +473,7 @@ def generate_exp_vals(parameters, observables, gausses={}):
         if 'sparse' in all_exp_vals:
             exp_vals = {}
             iteration = 0
-            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+            time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
             times = set()
             while len(times) < num_timesteps:
                 for i in range(time_steps_per_itr):
@@ -485,7 +485,7 @@ def generate_exp_vals(parameters, observables, gausses={}):
         if 'vqpets' in all_exp_vals:
             exp_vals = []
             length = num_timesteps
-            if parameters['const_obs']: length = int(num_timesteps/((len(parameters['pauli_strings'])+1)))
+            if parameters['const_obs']: length = int(num_timesteps/((len(parameters['algorithms']['VQPE']['pauli_strings'])+1)))
             for i in range(length):
                 exp_vals.append(np.sum(np.array(spectrum)*E*np.exp(-1j*E*i*T/observables)))
             all_exp_vals['vqpets'][T].append(exp_vals)
@@ -605,8 +605,8 @@ def run(parameters, returns):
             used_time_series.append('gausts')
             for T in parameters['final_times']:
                 obs = observables
-                if parameters['QMEGS_full_observable']: obs //= 2
-                gauss_distributed_ts[T] = generate_ts_distribution(T, obs, parameters['QMEGS_sigma'])
+                if parameters['algorithms']['QMEGS']['full_observable']: obs //= 2
+                gauss_distributed_ts[T] = generate_ts_distribution(T, obs, parameters['algorithms']['QMEGS']['sigma'])
         if 'VQPE' in parameters['algorithms']: used_time_series.append('vqpets')
         
         if parameters['comp_type'] == 'S' or parameters['comp_type'] == 'H':
@@ -617,7 +617,7 @@ def run(parameters, returns):
                 print('T =', T, 'observables =', observables)
                 for time_series_name in used_time_series:
                     if time_series_name == 'vqpets':
-                        pauli_strings = parameters['pauli_strings']
+                        pauli_strings = parameters['algorithms']['VQPE']['pauli_strings']
                         name = make_filename(parameters, T=T, obs=observables)
                         for pauli_string in pauli_strings.paulis:
                             pauli_string = str(pauli_string)
@@ -753,7 +753,7 @@ def run(parameters, returns):
                             list_exp_vals = calc_all_exp_vals(results[index:index+observables], shots)
                             time_steps = set()
                             iteration = 0
-                            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+                            time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
                             while len(time_steps) < num_timesteps:
                                 for j in range(time_steps_per_itr):
                                     time = 2**iteration*j
@@ -765,7 +765,7 @@ def run(parameters, returns):
                             for j in range(len(time_steps)):
                                 exp_vals[time_steps[j]] = list_exp_vals[j]
                         elif used_time_series[i] == 'vqpets':
-                            pauli_strings = parameters['pauli_strings']
+                            pauli_strings = parameters['algorithms']['VQPE']['pauli_strings']
                             if parameters['const_obs']: vqpe_obs = observables//((len(pauli_strings)+1))
                             else: vqpe_obs = observables
                             Hexp_vals = np.zeros(vqpe_obs//2, dtype=complex)

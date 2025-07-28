@@ -67,40 +67,40 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
 
     if algo_name == 'QCELS':
         Dt = T/parameters['observables']
-        est_E_0s, observables = QCELS(algo_exp_vals['exp_vals'], Dt, parameters['QCELS_lambda_prior'], skipping=skipping)
+        est_E_0s, observables = QCELS(algo_exp_vals['exp_vals'], Dt, parameters['algorithms']['QCELS']['lambda_prior'], skipping=skipping)
     elif algo_name == 'ODMD':
         Dt = T/parameters['observables']
-        threshold = parameters['ODMD_svd_threshold']
-        full_observable = parameters['ODMD_full_observable']
+        threshold = parameters['algorithms']['ODMD']['svd_threshold']
+        full_observable = parameters['algorithms']['ODMD']['full_observable']
         exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, skipping=skipping)
-    elif algo_name == 'FODMD':
+    elif algo_name == 'FDODMD':
         Dt = T/parameters['observables']
-        threshold = parameters['FODMD_svd_threshold']
-        full_observable = parameters['FODMD_full_observable']
+        threshold = parameters['algorithms']['FDODMD']['svd_threshold']
+        full_observable = parameters['algorithms']['FDODMD']['full_observable']
         fourier_params = {}
-        gamma_range = parameters['FODMD_gamma_range']
+        gamma_range = parameters['algorithms']['FDODMD']['gamma_range']
         fourier_params['gamma_range'] = gamma_range
-        filters = parameters['FODMD_filter_count']
+        filters = parameters['algorithms']['FDODMD']['filter_count']
         fourier_params['filters'] = filters
         exp_vals = algo_exp_vals['exp_vals']
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=True, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
         Dt = T/parameters['observables']
-        est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], Dt,  parameters['UVQPE_svd_threshold'], skipping=skipping)
+        est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], Dt,  parameters['algorithms']['UVQPE']['svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
         exp_vals = algo_exp_vals['sparse_exp_vals']
-        est_E_0s, observables = ML_QCELS(exp_vals, T, parameters['ML_QCELS_time_steps'], parameters['QCELS_lambda_prior'])
+        est_E_0s, observables = ML_QCELS(exp_vals, T, parameters['algorithms']['ML_QCELS']['time_steps'], parameters['algorithms']['ML_QCELS']['lambda_prior'])
     elif algo_name == 'VQPE':
         exp_vals = algo_exp_vals['exp_vals']
         Hexp_vals = algo_exp_vals['Hexp_vals']
-        est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['pauli_strings']), parameters['VQPE_svd_threshold'], skipping=skipping)
+        est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['algorithms']['VQPE']['pauli_strings']), parameters['algorithms']['VQPE']['svd_threshold'], skipping=skipping)
     elif algo_name == 'QMEGS':
         exp_vals = algo_exp_vals['gauss_exp_vals']
-        alpha = parameters['QMEGS_alpha']
-        q = parameters['QMEGS_q']
-        K = parameters['QMEGS_K']
-        full_observable = parameters['QMEGS_full_observable']
+        alpha = parameters['algorithms']['QMEGS']['alpha']
+        q = parameters['algorithms']['QMEGS']['q']
+        K = parameters['algorithms']['QMEGS']['K']
+        full_observable = parameters['algorithms']['QMEGS']['full_observable']
         est_E_0s, observables = QMEGS_ground_energy(exp_vals, T, alpha, q, K, full_observable=full_observable, skipping=skipping)
     # readjust energy to what it originally was
     for i in range(len(est_E_0s)):

@@ -19,10 +19,7 @@ def check(parameters):
     assert(parameters['system'] == 'TFI' or parameters['system'] == 'SPI' or parameters['system'] == 'HUB' or parameters['system'] == 'H_2')
     if 'overlap' in parameters: assert(0<=parameters['overlap']<=1)
     if 'distribution' in parameters: assert(0.9999999999999999<=sum(parameters['distribution'])<=1.0000000000000099) # rounding
-    for algo in parameters['algorithms']:
-        assert(algo in ['VQPE','UVQPE','ODMD','FODMD','QCELS','ML_QCELS','QMEGS'])
 
-    
     # verify system parameters are setup correctly
     returns = {}
     used_variables = []
@@ -39,7 +36,7 @@ def check(parameters):
         parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'algorithms', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
+        used_variables = ['comp_type', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
         parameters['T'] = float(parameters['T'])
         assert(parameters['T']>0)
         if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
@@ -112,38 +109,39 @@ def check(parameters):
         else:
             parameters['final_times'] = [parameters['T']]
             parameters['final_observables'] = [parameters['observables']]
-
+    
+    used_variables.append('algorithms')
+    for algo in parameters['algorithms']:
+        assert(algo in ['VQPE','UVQPE','ODMD','FDODMD','QCELS','ML_QCELS','QMEGS'])
     if 'VQPE' in parameters['algorithms']:
-        used_variables.append('VQPE_svd_threshold')
-        if 'VQPE_svd_threshold' not in parameters: parameters['VQPE_svd_threshold'] = 10**-6
-        used_variables.append('pauli_strings')
-        parameters['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
-        total_num_time_series = 2*(len(parameters['pauli_strings'])+1)
+        if 'svd_threshold' not in parameters['algorithms']['VQPE']: parameters['algorithms']['VQPE']['svd_threshold'] = 10**-6
+        parameters['algorithms']['VQPE']['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
+        total_num_time_series = 2*(len(parameters['algorithms']['VQPE']['pauli_strings'])+1)
         if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
             parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
             for i in range(len(parameters['final_observables'])):
                 parameters['final_observables'][i] = int(ceil(parameters['final_observables'][i]/total_num_time_series)*total_num_time_series)
     if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
         # Approximate what Hartree-Fock would estimate
-        if 'QCELS_lambda_prior' in parameters:
-            lambda_prior = parameters['QCELS_lambda_prior']
+        if 'lambda_prior' in parameters:
+            lambda_prior = parameters['algorithms']['QCELS']['lambda_prior']
         else:
             E_0 = parameters['scaled_E_0']
             order = floor(log10(abs(E_0)))
-            if 'QCELS_lambda_digits' in parameters:
-                digits = parameters['QCELS_lambda_digits']
+            if 'lambda_digits' in parameters:
+                digits = parameters['algorithms']['QCELS']['lambda_digits']
                 if digits == -1: digits = int(random.randint(1,3))
             else: digits = 2
-            used_variables.append('QCELS_lambda_prior')
             lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+random.rand())*(10**(order-digits+1))
-        parameters['QCELS_lambda_prior'] = lambda_prior
+    if 'QCELS' in parameters['algorithms']:
+        parameters['algorithms']['QCELS']['lambda_prior'] = lambda_prior
     if 'ML_QCELS' in parameters['algorithms']:
+        parameters['algorithms']['ML_QCELS']['lambda_prior'] = lambda_prior
         # make sure the time steps per iteration is defined
-        used_variables.append('ML_QCELS_time_steps')
-        if 'ML_QCELS_time_steps' not in parameters: parameters['ML_QCELS_time_steps'] = 5
+        if 'time_steps' not in parameters['algorithms']['ML_QCELS']: parameters['algorithms']['ML_QCELS']['time_steps'] = 5
         # adjust the observables so that all algorithms match ML_QCELS's observables
         iteration = 0
-        time_steps_per_itr = parameters['ML_QCELS_time_steps']
+        time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
         times = set()
         while len(times) < parameters['observables']/2:
             for i in range(time_steps_per_itr):
@@ -153,48 +151,36 @@ def check(parameters):
 
         for obs in range(len(parameters['final_observables'])):
             iteration = 0
-            time_steps_per_itr = parameters['ML_QCELS_time_steps']
+            time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
             times = set()
             while len(times) < parameters['final_observables'][obs]/2:
                 for i in range(time_steps_per_itr):
                     times.add(2**iteration*i)
                 iteration+=1
             parameters['final_observables'][obs] = len(times)*2
-        if 'ML_QCELS_calc_Dt' in parameters and parameters['ML_QCELS_calc_Dt']:
+        if 'calc_Dt' in parameters and parameters['algorithms']['ML_QCELS']['calc_Dt']:
             delta = 1*sqrt(1-parameters['overlap'])
-            parameters['T'] = parameters['observables']*delta/parameters['ML_QCELS_time_steps']
+            parameters['T'] = parameters['observables']*delta/parameters['algorithms']['ML_QCELS']['time_steps']
     if 'ODMD' in parameters['algorithms']:
-        used_variables.append('ODMD_svd_threshold')
-        if 'ODMD_svd_threshold' not in parameters: parameters['ODMD_svd_threshold'] = 10**-6
-        used_variables.append('ODMD_full_observable')
-        if 'ODMD_full_observable' not in parameters: parameters['ODMD_full_observable'] = False
-    if 'FODMD' in parameters['algorithms']:
-        used_variables.append('FODMD_svd_threshold')
-        if 'FODMD_svd_threshold' not in parameters: parameters['FODMD_svd_threshold'] = 10**-6
-        used_variables.append('FODMD_full_observable')
-        if 'FODMD_full_observable' not in parameters: parameters['FODMD_full_observable'] = False
-        used_variables.append('FODMD_gamma_range')
-        if 'FODMD_gamma_range' not in parameters:
-            parameters['FODMD_gamma_range'] = (1,3)
+        if 'ODMD_svd_threshold' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['svd_threshold'] = 10**-6
+        if 'ODMD_full_observable' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['full_observable'] = False
+    if 'FDODMD' in parameters['algorithms']:
+        if 'FDODMD_svd_threshold' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['svd_threshold'] = 10**-6
+        if 'FDODMD_full_observable' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['full_observable'] = False
+        if 'FDODMD_gamma_range' not in parameters['algorithms']['FDODMD']:
+            parameters['algorithms']['FDODMD']['gamma_range'] = (1,3)
         else:
-            assert(parameters['FODMD_gamma_range'][0]>=0 and parameters['FODMD_gamma_range'][1]>=0)
-            assert(parameters['FODMD_gamma_range'][0]<=parameters['FODMD_gamma_range'][1])
-        used_variables.append('FODMD_filter_count')
-        if 'FODMD_filter_count' not in parameters: parameters['FODMD_filter_count'] = 6
+            assert(parameters['algorithms']['FDODMD']['gamma_range'][0]>=0 and parameters['algorithms']['FDODMD']['gamma_range'][1]>=0)
+            assert(parameters['algorithms']['FDODMD']['gamma_range'][0]<=parameters['algorithms']['FDODMD']['gamma_range'][1])
+        if 'FDODMD_filter_count' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['filter_count'] = 6
     if 'UVQPE' in parameters['algorithms']:
-        used_variables.append('UVQPE_svd_threshold')
-        if 'UVQPE_svd_threshold' not in parameters: parameters['UVQPE_svd_threshold'] = 10**-6
+        if 'svd_threshold' not in parameters['algorithms']['UVQPE']: parameters['algorithms']['UVQPE']['svd_threshold'] = 10**-6
     if 'QMEGS' in parameters['algorithms']:
-        used_variables.append('QMEGS_sigma')
-        if 'QMEGS_sigma' not in parameters: parameters['QMEGS_sigma'] = 0.5
-        used_variables.append('QMEGS_q')
-        if 'QMEGS_q' not in parameters: parameters['QMEGS_q'] = 0.05
-        used_variables.append('QMEGS_alpha')
-        if 'QMEGS_alpha' not in parameters: parameters['QMEGS_alpha'] = 5
-        used_variables.append('QMEGS_K')
-        if 'QMEGS_K' not in parameters: parameters['QMEGS_K'] = 1
-        used_variables.append('QMEGS_full_observable')
-        if 'QMEGS_full_observable' not in parameters: parameters['QMEGS_full_observable'] = True
+        if 'sigma' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['sigma'] = 0.5
+        if 'q' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['q'] = 0.05
+        if 'alpha' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['alpha'] = 5
+        if 'K' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['K'] = 1
+        if 'full_observable' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['full_observable'] = True
 
     keys = []
     for i in parameters.keys():
@@ -252,13 +238,13 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     else: string+='_T='+str(T)
     if obs == -1:
         if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
-            string += '_obs='+str(int(parameters['observables']/(len(parameters['pauli_strings'])+1)))
+            string += '_obs='+str(int(parameters['observables']/(len(parameters['algorithms']['VQPE']['pauli_strings'])+1)))
         else:
             string += '_obs='+str(parameters['observables'])
     else:
         string += '_obs='+str(obs)
     if key == 'gausts':
-        string += '_sigma='+str(parameters['QMEGS_sigma'])
+        string += '_sigma='+str(parameters['algorithms']['QMEGS']['sigma'])
     if add_shots:
         string += '_reruns='+str(parameters['reruns'])
         if parameters['comp_type'] != 'C':
@@ -266,7 +252,7 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     return string
 
 def check_contains_linear(algos):
-    linear = ['ODMD', 'FODMD', 'VQPE', 'UVQPE', 'QCELS']
+    linear = ['ODMD', 'FDODMD', 'VQPE', 'UVQPE', 'QCELS']
     for algo in algos:
         if algo in linear:
             return True

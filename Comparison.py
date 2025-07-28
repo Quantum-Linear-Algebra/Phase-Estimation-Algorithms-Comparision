@@ -19,8 +19,8 @@ parameters = {}
 # Generic Parameters
 parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['observables']  = 500
-parameters['sites']        = 3
-parameters['T']            = 10000
+parameters['sites']        = 2
+parameters['T']            = 250
 parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
@@ -31,9 +31,9 @@ parameters['overlap']      = 1   # the initial state overlap
 parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
-parameters['g'] = 4 # magnetic field strength (TFIM)
+parameters['g']                = 10 # magnetic field strength (TFIM)
 parameters['method_for_model'] = 'Q' # OPTIONS: F3C, Qiskit
-parameters['trotter'] = 10 # only with method_for_model = F3C
+parameters['trotter']          = 10 # only used with method_for_model = F3C
 
 # Spin Model Parameters
 parameters['J'] = 4 # coupling strength (SPIN)
@@ -47,34 +47,42 @@ parameters['y'] = 1 # y size of latice (HUBB)
 # H_2 Parameters
 parameters['distance'] = .5
 
-# Algorithm Paramters
-parameters['algorithms']    = ['ML_QCELS', 'QMEGS'] # ALGORITHMS: 'ODMD', 'FODMD', 'UVQPE', 'QCELS', 'VQPE', 'ML_QCELS', 'QMEGS'
-parameters['const_obs']     = False # if False then constant time
+# General Algorithm Paramters
+parameters['const_obs']     = True # if False then constant time
 parameters['num_time_sims'] = 1
 parameters['num_obs_sims']  = 1
 parameters['reruns']        = 10
+parameters['algorithms']    = {}
 
-# Algorithm Specific Parameters
-parameters['ODMD_svd_threshold']    = 10**-1
-parameters['ODMD_full_observable']  = True
+# shots, T, min_observables
+parameters['algorithms']['ODMD'] = {}
+parameters['algorithms']['ODMD']['svd_threshold']     = 10**-1
+parameters['algorithms']['ODMD']['full_observable']   = True
 
-parameters['FODMD_svd_threshold']   = 10**-1
-parameters['FODMD_full_observable'] = True
-parameters['FODMD_gamma_range']     = (1,4) # (min, max)
-parameters['FODMD_filter_count']    = 4
+parameters['algorithms']['FDODMD'] = {}
+parameters['algorithms']['FDODMD']['svd_threshold']   = 10**-1
+parameters['algorithms']['FDODMD']['full_observable'] = True
+parameters['algorithms']['FDODMD']['gamma_range']     = (1,4) # (min, max)
+parameters['algorithms']['FDODMD']['filter_count']    = 4
 
-parameters['VQPE_svd_threshold']    = 10**-1
+parameters['algorithms']['VQPE'] = {}
+parameters['algorithms']['VQPE']['svd_threshold']    = 10**-1
 
-parameters['UVQPE_svd_threshold']   = 10**-1
+parameters['algorithms']['UVQPE'] = {}
+parameters['algorithms']['UVQPE']['svd_threshold']   = 10**-1
 
-parameters['ML_QCELS_time_steps']   = 5
-parameters['ML_QCELS_calc_Dt']      = False
+parameters['algorithms']['QCELS'] = {}
 
-parameters['QMEGS_sigma']           = 1
-parameters['QMEGS_q']               = 0.05
-parameters['QMEGS_alpha']           = 5
-parameters['QMEGS_K']               = 2
-parameters['QMEGS_full_observable'] = True
+parameters['algorithms']['ML_QCELS'] = {}
+parameters['algorithms']['ML_QCELS']['time_steps']   = 5
+parameters['algorithms']['ML_QCELS']['calc_Dt']      = False
+
+parameters['algorithms']['QMEGS'] = {}
+parameters['algorithms']['QMEGS']['sigma']           = 1
+parameters['algorithms']['QMEGS']['q']               = 0.05
+parameters['algorithms']['QMEGS']['alpha']           = 5
+parameters['algorithms']['QMEGS']['K']               = 2
+parameters['algorithms']['QMEGS']['full_observable'] = True
 
 
 if __name__ == "__main__":
