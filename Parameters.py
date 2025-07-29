@@ -36,9 +36,10 @@ def check(parameters):
         parameters['comp_type'] = 'J'
         returns['job_ids'] = job_ids
     else:
-        used_variables = ['comp_type', 'sites', 'T', 'scaling', 'shifting', 'system', 'observables', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
-        parameters['T'] = float(parameters['T'])
-        assert(parameters['T']>0)
+        used_variables = ['comp_type', 'sites', 'max_T', 'scaling', 'shifting', 'system',
+                          'max_queries', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
+        parameters['max_T'] = float(parameters['max_T'])
+        assert(parameters['max_T']>0)
         if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
         if parameters['comp_type'] == 'C' or 'reruns' not in parameters: parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
@@ -97,30 +98,25 @@ def check(parameters):
         
         if 'const_obs' not in parameters:
             parameters['const_obs'] = False
-        used_variables.append('final_times')
-        used_variables.append('final_observables')
-        if not parameters['const_obs']:
-            num_sims = 10
-            if 'num_time_sims' in parameters: num_sims = parameters['num_time_sims']
-            parameters['final_times'] = linspace(0, parameters['T'], num_sims+1)[1:] # excluding 0
-            num_sims = 10
-            if 'num_obs_sims' in parameters: num_sims = parameters['num_obs_sims']
-            parameters['final_observables'] = [int(i) for i in linspace(0, parameters['observables'], num_sims+1)[1:]] # excluding 0
-        else:
-            parameters['final_times'] = [parameters['T']]
-            parameters['final_observables'] = [parameters['observables']]
+
+        # used_variables.append('final_times')
+        # used_variables.append('final_observables')
+        # if not parameters['const_obs']:
+        #     num_sims = 10
+        #     if 'num_time_sims' in parameters: num_sims = parameters['num_time_sims']
+        #     parameters['final_times'] = linspace(0, parameters['max_T'], num_sims+1)[1:] # excluding 0
+        #     num_sims = 10
+        #     if 'num_obs_sims' in parameters: num_sims = parameters['num_obs_sims']
+        #     parameters['final_observables'] = [int(i) for i in linspace(0, parameters['observables'], num_sims+1)[1:]] # excluding 0
+        # else:
+        #     parameters['final_times'] = [parameters['max_T']]
+        #     parameters['final_observables'] = [parameters['observables']]
     
     used_variables.append('algorithms')
     for algo in parameters['algorithms']:
         assert(algo in ['VQPE','UVQPE','ODMD','FDODMD','QCELS','ML_QCELS','QMEGS'])
-    if 'VQPE' in parameters['algorithms']:
-        if 'svd_threshold' not in parameters['algorithms']['VQPE']: parameters['algorithms']['VQPE']['svd_threshold'] = 10**-6
-        parameters['algorithms']['VQPE']['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
-        total_num_time_series = 2*(len(parameters['algorithms']['VQPE']['pauli_strings'])+1)
-        if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
-            parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
-            for i in range(len(parameters['final_observables'])):
-                parameters['final_observables'][i] = int(ceil(parameters['final_observables'][i]/total_num_time_series)*total_num_time_series)
+
+    # calculate lambda prior if needded
     if 'QCELS' in parameters['algorithms'] or 'ML_QCELS' in parameters['algorithms']:
         # Approximate what Hartree-Fock would estimate
         if 'lambda_prior' in parameters:
@@ -133,46 +129,53 @@ def check(parameters):
                 if digits == -1: digits = int(random.randint(1,3))
             else: digits = 2
             lambda_prior = -(int(str(E_0*10**(-order+digits))[1:digits+1])+random.rand())*(10**(order-digits+1))
+
+    if 'VQPE' in parameters['algorithms']:
+        if 'svd_threshold' not in parameters['algorithms']['VQPE']: parameters['algorithms']['VQPE']['svd_threshold'] = 10**-6
+        parameters['algorithms']['VQPE']['pauli_strings'] = SparsePauliOp.from_operator(Operator(H))
+        # total_num_time_series = 2*(len(parameters['algorithms']['VQPE']['pauli_strings'])+1)
+        # if parameters['const_obs'] and parameters['observables']%total_num_time_series!=0:
+        #     parameters['observables'] = int(ceil(parameters['observables']/total_num_time_series)*total_num_time_series)
+        #     for i in range(len(parameters['final_observables'])):
+        #         parameters['final_observables'][i] = int(ceil(parameters['final_observables'][i]/total_num_time_series)*total_num_time_series)
     if 'QCELS' in parameters['algorithms']:
         parameters['algorithms']['QCELS']['lambda_prior'] = lambda_prior
     if 'ML_QCELS' in parameters['algorithms']:
         parameters['algorithms']['ML_QCELS']['lambda_prior'] = lambda_prior
         # make sure the time steps per iteration is defined
         if 'time_steps' not in parameters['algorithms']['ML_QCELS']: parameters['algorithms']['ML_QCELS']['time_steps'] = 5
-        # adjust the observables so that all algorithms match ML_QCELS's observables
-        iteration = 0
-        time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
-        times = set()
-        while len(times) < parameters['observables']/2:
-            for i in range(time_steps_per_itr):
-                times.add(2**iteration*i)
-            iteration+=1
-        parameters['observables'] = len(times)*2
 
-        for obs in range(len(parameters['final_observables'])):
-            iteration = 0
-            time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
-            times = set()
-            while len(times) < parameters['final_observables'][obs]/2:
-                for i in range(time_steps_per_itr):
-                    times.add(2**iteration*i)
-                iteration+=1
-            parameters['final_observables'][obs] = len(times)*2
-        if 'calc_Dt' in parameters and parameters['algorithms']['ML_QCELS']['calc_Dt']:
-            delta = 1*sqrt(1-parameters['overlap'])
-            parameters['T'] = parameters['observables']*delta/parameters['algorithms']['ML_QCELS']['time_steps']
+        # iteration = 0
+        # time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
+        # times = set()
+        # while len(times) < parameters['observables']/2:
+        #     for i in range(time_steps_per_itr):
+        #         times.add(2**iteration*i)
+        #     iteration+=1
+        # for obs in range(len(parameters['final_observables'])):
+        #     iteration = 0
+        #     time_steps_per_itr = parameters['algorithms']['ML_QCELS']['time_steps']
+        #     times = set()
+        #     while len(times) < parameters['final_observables'][obs]/2:
+        #         for i in range(time_steps_per_itr):
+        #             times.add(2**iteration*i)
+        #         iteration+=1
+        #     parameters['final_observables'][obs] = len(times)*2
+        # if 'calc_Dt' in parameters and parameters['algorithms']['ML_QCELS']['calc_Dt']:
+        #     delta = 1*sqrt(1-parameters['overlap'])
+        #     parameters['max_T'] = parameters['observables']*delta/parameters['algorithms']['ML_QCELS']['time_steps']
     if 'ODMD' in parameters['algorithms']:
-        if 'ODMD_svd_threshold' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['svd_threshold'] = 10**-6
-        if 'ODMD_full_observable' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['full_observable'] = False
+        if 'svd_threshold' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['svd_threshold'] = 10**-6
+        if 'full_observable' not in parameters['algorithms']['ODMD']: parameters['algorithms']['ODMD']['full_observable'] = False
     if 'FDODMD' in parameters['algorithms']:
-        if 'FDODMD_svd_threshold' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['svd_threshold'] = 10**-6
-        if 'FDODMD_full_observable' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['full_observable'] = False
-        if 'FDODMD_gamma_range' not in parameters['algorithms']['FDODMD']:
+        if 'svd_threshold' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['svd_threshold'] = 10**-6
+        if 'full_observable' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['full_observable'] = False
+        if 'gamma_range' not in parameters['algorithms']['FDODMD']:
             parameters['algorithms']['FDODMD']['gamma_range'] = (1,3)
         else:
             assert(parameters['algorithms']['FDODMD']['gamma_range'][0]>=0 and parameters['algorithms']['FDODMD']['gamma_range'][1]>=0)
             assert(parameters['algorithms']['FDODMD']['gamma_range'][0]<=parameters['algorithms']['FDODMD']['gamma_range'][1])
-        if 'FDODMD_filter_count' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['filter_count'] = 6
+        if 'filter_count' not in parameters['algorithms']['FDODMD']: parameters['algorithms']['FDODMD']['filter_count'] = 6
     if 'UVQPE' in parameters['algorithms']:
         if 'svd_threshold' not in parameters['algorithms']['UVQPE']: parameters['algorithms']['UVQPE']['svd_threshold'] = 10**-6
     if 'QMEGS' in parameters['algorithms']:
@@ -181,6 +184,54 @@ def check(parameters):
         if 'alpha' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['alpha'] = 5
         if 'K' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['K'] = 1
         if 'full_observable' not in parameters['algorithms']['QMEGS']: parameters['algorithms']['QMEGS']['full_observable'] = True
+
+    used_variables.append('time_series')
+    parameters['time_series'] = {}
+    for algo in parameters['algorithms']:
+        algo_params = parameters['algorithms'][algo]
+        # print(algo, algo_params)
+        if 'T' in algo_params:
+            T = algo_params['T']
+        else:
+            T = parameters['max_T']
+        
+        if 'shots' in algo_params:
+            shots = algo_params['shots']
+        else:
+            shots = parameters['shots']
+        
+        if 'full_observable' in algo_params:
+            full_observable = algo_params['full_observable']
+        else:
+            full_observable = True 
+        
+        obs = parameters['max_queries']//shots # just real 
+        if full_observable:
+            obs //= 2 # real and imaginary
+
+        if algo == 'VQPE':
+            time_dist = 'vqpets'
+            obs //= len(algo_params['pauli_strings'])
+            # check to see if theres a useable linear time series
+            found = False
+            for time_series in parameters['time_series']:
+                (time_dist2, T2, obs2, shots2, fo2)  = time_series
+                if time_dist2 == 'linear' and fo2 == full_observable and T/obs == T2/obs2 and shots==shots2:
+                    found = True
+                    break
+            # make one if there isn't a useable one
+            if not found:
+                parameters['time_series'][('linear', T, obs, shots, full_observable)] = []
+        elif check_contains_linear([algo]):
+            time_dist = 'linear'
+        elif algo == 'QMEGS':
+            time_dist = 'gausts'
+        elif algo == 'ML_QCELS':
+            time_dist = 'sparse'
+        time_series = (time_dist, T, obs, shots, full_observable)
+        if time_series not in parameters['time_series']:
+            parameters['time_series'][time_series] = []
+        parameters['time_series'][time_series].append(algo)
 
     keys = []
     for i in parameters.keys():
@@ -194,6 +245,7 @@ def check(parameters):
         parameters['backend'] = create_hardware_backend()
     elif parameters['comp_type'] == 'S':
         parameters['backend'] = AerSimulator(noise_model = NoiseModel())
+    
     print('Parameters are setup:')
     for key in parameters.keys():
         print('  '+key+':', parameters[key])
@@ -201,7 +253,7 @@ def check(parameters):
     return returns
 
 # define a system for naming files
-def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
+def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1, shots=-1, fo=True):
     system = parameters['system']
     
     string = ''
@@ -219,7 +271,7 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     elif system=='SPI':
         string+='_J='+str(parameters['J'])
     elif system=='HUB':
-        string+='_t='+str(parameters['t'])
+        string+='_t='+str(parameters['max_T'])
         string+='_U='+str(parameters['U'])
         string+='_x='+str(parameters['x'])
         string+='_y='+str(parameters['y'])
@@ -234,13 +286,13 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
             string+=f'{i:0.2},'
         var = parameters['distribution'][3]
         string+=f'{var:0.2}]'
-    if T == -1: string+='_T='+str(parameters['T'])
+    if T == -1: string+='_T='+str(parameters['max_T'])
     else: string+='_T='+str(T)
     if obs == -1:
         if parameters['algorithms'] == ['VQPE'] and parameters['const_obs']:
             string += '_obs='+str(int(parameters['observables']/(len(parameters['algorithms']['VQPE']['pauli_strings'])+1)))
         else:
-            string += '_obs='+str(parameters['observables'])
+            string += '_obs='+str(parameters['max_queries']//parameters['shots'])
     else:
         string += '_obs='+str(obs)
     if key == 'gausts':
@@ -248,7 +300,12 @@ def make_filename(parameters, add_shots = False, key='', T = -1, obs=-1):
     if add_shots:
         string += '_reruns='+str(parameters['reruns'])
         if parameters['comp_type'] != 'C':
-            string += '_shots='+str(parameters['shots'])
+            if shots!=-1:
+                string += '_shots='+str(parameters['shots'])
+            else:
+                string += '_shots='+str(shots)
+    if not fo:
+        string += '_onlyRe'
     return string
 
 def check_contains_linear(algos):

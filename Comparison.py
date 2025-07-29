@@ -13,22 +13,19 @@ import Data_Manager as data
 import Algorithm_Manager as algo
 import Graph_Manager as graph_gen
 
-parameters = {}
 # NOTE: Specifying unused parameters will not affect computation with the used parameters
+parameters = {}
 
-# Generic Parameters
-parameters['comp_type']    = 'S' # OPTIONS: Classical, Simulation, Hardware, Job
-parameters['observables']  = 500
+# System Parameters
+parameters['comp_type']    = 's' # OPTIONS: Classical, Simulation, Hardware, Job
 parameters['sites']        = 2
-parameters['T']            = 250
-parameters['shots']        = 10**2
 parameters['scaling']      = 3/4*pi
 parameters['shifting']     = 0
 parameters['overlap']      = 1   # the initial state overlap
 # parameters['distribution'] = [.5]+[.5/(2^2-1)]*(2^2-1)
 
 # SPECIFIC SYSTEM TYPE
-parameters['system']     = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
+parameters['system'] = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
 parameters['g']                = 10 # magnetic field strength (TFIM)
@@ -48,45 +45,51 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # General Algorithm Paramters
-parameters['const_obs']     = True # if False then constant time
-parameters['num_time_sims'] = 1
-parameters['num_obs_sims']  = 1
+parameters['max_queries']   = 200 * 10**0
+parameters['max_T']         = 100
+parameters['shots']         = 10**0
+parameters['observables']   = 100
+# parameters['num_time_sims'] = 1
+# parameters['num_obs_sims']  = 1
 parameters['reruns']        = 10
+
+# NOTE: any parameters not filled out correctly will be set to default values (check displayed parameters)
 parameters['algorithms']    = {}
 
-# shots, T, min_observables
 parameters['algorithms']['ODMD'] = {}
-parameters['algorithms']['ODMD']['svd_threshold']     = 10**-1
-parameters['algorithms']['ODMD']['full_observable']   = True
+# parameters['algorithms']['ODMD']['svd_threshold']   = 10**-1
+# parameters['algorithms']['ODMD']['full_observable'] = True
+# parameters['algorithms']['ODMD']['T']               = 10
+# parameters['algorithms']['ODMD']['shots']           = 2
 
-parameters['algorithms']['FDODMD'] = {}
-parameters['algorithms']['FDODMD']['svd_threshold']   = 10**-1
-parameters['algorithms']['FDODMD']['full_observable'] = True
-parameters['algorithms']['FDODMD']['gamma_range']     = (1,4) # (min, max)
-parameters['algorithms']['FDODMD']['filter_count']    = 4
+# parameters['algorithms']['FDODMD'] = {}
+# parameters['algorithms']['FDODMD']['svd_threshold']   = 10**-1
+# parameters['algorithms']['FDODMD']['full_observable'] = True
+# parameters['algorithms']['FDODMD']['gamma_range']     = (1,4) # (min, max)
+# parameters['algorithms']['FDODMD']['filter_count']    = 4
 
-parameters['algorithms']['VQPE'] = {}
-parameters['algorithms']['VQPE']['svd_threshold']    = 10**-1
+# parameters['algorithms']['VQPE'] = {}
+# parameters['algorithms']['VQPE']['svd_threshold']     = 10**-1
 
-parameters['algorithms']['UVQPE'] = {}
-parameters['algorithms']['UVQPE']['svd_threshold']   = 10**-1
+# parameters['algorithms']['UVQPE'] = {}
+# parameters['algorithms']['UVQPE']['svd_threshold']    = 10**-1
+# parameters['algorithms']['UVQPE']['shots']            = 1
 
-parameters['algorithms']['QCELS'] = {}
+# parameters['algorithms']['QCELS'] = {}
 
-parameters['algorithms']['ML_QCELS'] = {}
-parameters['algorithms']['ML_QCELS']['time_steps']   = 5
-parameters['algorithms']['ML_QCELS']['calc_Dt']      = False
+# parameters['algorithms']['ML_QCELS'] = {}
+# parameters['algorithms']['ML_QCELS']['time_steps']    = 5
 
-parameters['algorithms']['QMEGS'] = {}
-parameters['algorithms']['QMEGS']['sigma']           = 1
-parameters['algorithms']['QMEGS']['q']               = 0.05
-parameters['algorithms']['QMEGS']['alpha']           = 5
-parameters['algorithms']['QMEGS']['K']               = 2
-parameters['algorithms']['QMEGS']['full_observable'] = True
+# parameters['algorithms']['QMEGS'] = {}
+# parameters['algorithms']['QMEGS']['sigma']            = 1
+# parameters['algorithms']['QMEGS']['q']                = 0.05
+# parameters['algorithms']['QMEGS']['alpha']            = 5
+# parameters['algorithms']['QMEGS']['K']                = 2
+# parameters['algorithms']['QMEGS']['full_observable']  = True
 
 
 if __name__ == "__main__":
     returns = param.check(parameters)
     data.run(parameters, returns)
-    algo.run(parameters, skipping=10)
+    algo.run(parameters, skipping=1)
     graph_gen.run(parameters, show_std=False)

@@ -15,67 +15,69 @@ sys.path.append('./0-Data')
 
 def run(parameters, skipping=1):
     print('\nRunning Algorithms')
-    contains_linear = check_contains_linear(parameters['algorithms'])
+
     all_exp_vals = {}
-    
-    final_times = parameters['final_times']
-
-    if contains_linear: all_exp_vals['linear'] = {}
-    if 'ML_QCELS' in parameters['algorithms']: all_exp_vals['sparse'] = {}
-    if 'VQPE' in parameters['algorithms']: all_exp_vals['vqpets'] = {}
-    if 'QMEGS' in parameters['algorithms']: all_exp_vals['gausts'] = {}
-
     biggest_skipping = skipping
-    for obs in parameters['final_observables']:
+    for time_series in parameters['time_series']:
+        (time_series_name, T, observables, shots, full_observable) = time_series
         skipping=biggest_skipping
-        for key in all_exp_vals:
-            for T in final_times:
-                with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, key=key, T=T, obs=obs)+'.pkl', 'rb') as file:
-                    all_exp_vals[key][T] = pickle.load(file)
-                if skipping> len(all_exp_vals[key][T][0]): skipping = len(all_exp_vals[key][T][0])
-        for algo_name in parameters['algorithms']:
-            for T in final_times:
-                all_observables = []
-                all_est_E_0s = []
-                reruns = parameters['reruns']
-                for key in all_exp_vals:
-                    assert(len(all_exp_vals[key][T])>=reruns)
-                for run in range(reruns):
-                    algo_exp_vals = {}
-                    if algo_name == 'ML_QCELS':
-                        algo_exp_vals['sparse_exp_vals'] = all_exp_vals['sparse'][T][run]
-                    elif algo_name == 'QMEGS':
-                        algo_exp_vals['gauss_exp_vals'] = all_exp_vals['gausts'][T][run]
-                    else: 
-                        algo_exp_vals['exp_vals'] = all_exp_vals['linear'][T][run]
-                        if algo_name == 'VQPE':
-                            algo_exp_vals['Hexp_vals'] = all_exp_vals['vqpets'][T][run]
-                    observables, est_E_0s = run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=skipping)
-                    all_observables.append(observables)
-                    all_est_E_0s.append(est_E_0s)
-                try: os.mkdir('1-Algorithms/Results')
-                except: pass
-                filename = make_filename(parameters, add_shots=True,T=T, obs=obs)+'.pkl'
-                with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
-                    pickle.dump([all_observables, all_est_E_0s], file)
-                print('Saved', algo_name+'\'s results for T = ', T, ' into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
+        with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, shots=shots, key=time_series_name, T=T, obs=observables, fo = full_observable)+'.pkl', 'rb') as file:
+            all_exp_vals[time_series] = pickle.load(file)
+        if skipping> len(all_exp_vals[time_series][0]): skipping = len(all_exp_vals[time_series][0])
+    
+    for time_series in parameters['time_series']:
+        (time_series_name, T, observables, shots, full_observable) = time_series
+        algos = parameters['time_series'][time_series]
+        for algo_name in algos:
+            all_observables = []
+            all_est_E_0s = []
+            reruns = parameters['reruns']
+            for series in all_exp_vals[time_series]:
+                assert(len(series)>=reruns)
+            for run in range(reruns):
+                if algo_name != 'VQPE':
+                    exp_vals = all_exp_vals[time_series][run]
+                else:
+                    Hev = all_exp_vals[time_series][run]
+                    time_series_2 = ('linear', T, observables, shots, full_observable) # find some way of finding the right time series
+                    if time_series_2 in all_exp_vals:
+                        ev = all_exp_vals[time_series_2][run]
+                    else:
+                        for ts in all_exp_vals:
+                            (ts_name2, T2, obs2, shots2, fo2) = ts
+                            if ts_name2 == 'linear' and fo2 == full_observable and T/obs == T2/obs2 and shots==shots2:
+                                ev = all_exp_vals[ts][run][:observables]
+                    exp_vals = [ev, Hev]
 
-def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
-    for key in algo_exp_vals:
-        if key == 'exp_vals' or key == 'sparse_exp_vals':
-            algo_exp_vals[key][0] = 1 + 0j
+                obs, est_E_0s = run_single_algo(algo_name, exp_vals, parameters, time_series, skipping=skipping)
+                all_observables.append(obs)
+                all_est_E_0s.append(est_E_0s)
+            try: os.mkdir('1-Algorithms/Results')
+            except: pass
+            filename = make_filename(parameters, add_shots=True, T=T, obs=observables, shots=shots, fo=full_observable)+'.pkl'
+            
+            all_queries = [i*shots for i in all_observables[0]]
+            with open('1-Algorithms/Results/'+algo_name+'_'+filename, 'wb') as file:
+                pickle.dump([all_queries, all_est_E_0s], file)
+            print('Saved', algo_name+'\'s results for T = ', T, ' into file.', '(1-Algorithms/Results/'+algo_name+'_'+filename+')')
+
+def run_single_algo(algo_name, algo_exp_vals, parameters, time_series, skipping=1):
+    (time_series_name, T, observables, shots, full_observable) = time_series
+
+    if time_series_name == 'exp_vals' or time_series_name == 'sparse_exp_vals':
+        algo_exp_vals[0] = 1 + 0j
 
     if algo_name == 'QCELS':
-        Dt = T/parameters['observables']
-        est_E_0s, observables = QCELS(algo_exp_vals['exp_vals'], Dt, parameters['algorithms']['QCELS']['lambda_prior'], skipping=skipping)
+        Dt = T/observables
+        est_E_0s, observables = QCELS(algo_exp_vals, Dt, parameters['algorithms']['QCELS']['lambda_prior'], skipping=skipping)
     elif algo_name == 'ODMD':
-        Dt = T/parameters['observables']
+        Dt = T/observables
         threshold = parameters['algorithms']['ODMD']['svd_threshold']
         full_observable = parameters['algorithms']['ODMD']['full_observable']
-        exp_vals = algo_exp_vals['exp_vals']
+        exp_vals = algo_exp_vals
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, skipping=skipping)
     elif algo_name == 'FDODMD':
-        Dt = T/parameters['observables']
+        Dt = T/observables
         threshold = parameters['algorithms']['FDODMD']['svd_threshold']
         full_observable = parameters['algorithms']['FDODMD']['full_observable']
         fourier_params = {}
@@ -83,20 +85,20 @@ def run_single_algo(algo_name, algo_exp_vals, parameters, T, skipping=1):
         fourier_params['gamma_range'] = gamma_range
         filters = parameters['algorithms']['FDODMD']['filter_count']
         fourier_params['filters'] = filters
-        exp_vals = algo_exp_vals['exp_vals']
+        exp_vals = algo_exp_vals
         est_E_0s, observables = ODMD(exp_vals, Dt, threshold, len(exp_vals), full_observable=full_observable, fourier_filter=True, fourier_params=fourier_params, skipping=skipping)
     elif algo_name == 'UVQPE':
-        Dt = T/parameters['observables']
-        est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals['exp_vals'], Dt,  parameters['algorithms']['UVQPE']['svd_threshold'], skipping=skipping)
+        Dt = T/observables
+        est_E_0s, observables = UVQPE_ground_energy(algo_exp_vals, Dt,  parameters['algorithms']['UVQPE']['svd_threshold'], skipping=skipping)
     elif algo_name == 'ML_QCELS':
-        exp_vals = algo_exp_vals['sparse_exp_vals']
+        exp_vals = algo_exp_vals
         est_E_0s, observables = ML_QCELS(exp_vals, T, parameters['algorithms']['ML_QCELS']['time_steps'], parameters['algorithms']['ML_QCELS']['lambda_prior'])
     elif algo_name == 'VQPE':
-        exp_vals = algo_exp_vals['exp_vals']
-        Hexp_vals = algo_exp_vals['Hexp_vals']
+        exp_vals = algo_exp_vals[0]
+        Hexp_vals = algo_exp_vals[1]
         est_E_0s, observables = VQPE_ground_energy(exp_vals[:len(Hexp_vals)], Hexp_vals, len(parameters['algorithms']['VQPE']['pauli_strings']), parameters['algorithms']['VQPE']['svd_threshold'], skipping=skipping)
     elif algo_name == 'QMEGS':
-        exp_vals = algo_exp_vals['gauss_exp_vals']
+        exp_vals = algo_exp_vals
         alpha = parameters['algorithms']['QMEGS']['alpha']
         q = parameters['algorithms']['QMEGS']['q']
         K = parameters['algorithms']['QMEGS']['K']
