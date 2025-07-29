@@ -17,13 +17,10 @@ def run(parameters, skipping=1):
     print('\nRunning Algorithms')
 
     all_exp_vals = {}
-    biggest_skipping = skipping
     for time_series in parameters['time_series']:
         (time_series_name, T, observables, shots, full_observable) = time_series
-        skipping=biggest_skipping
         with open('0-Data/Expectation_Values/'+make_filename(parameters, add_shots=True, shots=shots, key=time_series_name, T=T, obs=observables, fo = full_observable)+'.pkl', 'rb') as file:
             all_exp_vals[time_series] = pickle.load(file)
-        if skipping> len(all_exp_vals[time_series][0]): skipping = len(all_exp_vals[time_series][0])
     
     for time_series in parameters['time_series']:
         (time_series_name, T, observables, shots, full_observable) = time_series
@@ -63,7 +60,7 @@ def run(parameters, skipping=1):
 
 def run_single_algo(algo_name, algo_exp_vals, parameters, time_series, skipping=1):
     (time_series_name, T, observables, shots, full_observable) = time_series
-
+    if skipping > observables: skipping=observables
     if time_series_name == 'exp_vals' or time_series_name == 'sparse_exp_vals':
         algo_exp_vals[0] = 1 + 0j
 

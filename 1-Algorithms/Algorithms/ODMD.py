@@ -115,30 +115,28 @@ def ODMD(s_k, Dt, svd_threshold, max_iterations, precision = 0, full_observable=
         if k%skipping!=skipping-1: continue
         if k>=max_iterations: break
         if show_steps: print("k =", k+1)
-        if k < 1:
-            E_0 = 0
-        else:
-            temp = make_hankel(s_ks[:,:k+1])
-            X = temp[:,:-1]
-            Xprime = temp[:,1:]
-            if show_steps: print("X"); print_matrix(X)
-            if show_steps: print("Xprime") ; print_matrix(Xprime)
-            U, S, Vh = svd(X, full_matrices=False)
-            r = np.sum(S > svd_threshold * S[0]) # Rank truncation
-            U = U[:, :r]
-            if show_steps: print("singular values:", S)
-            S = S[:r]
-            if show_steps: print("filtered singular values:", S)
-            V = Vh[:r, :].conj().T
-            S_inv = np.diag(1/S)
-            A = U.conj().T @ Xprime @ V @ S_inv # atilde from ROEL_ODMD
-            # print(np.linalg.matrix_rank(A))
-            if show_steps: print("A"); print_matrix(A)  
-            eigenvalues = np.linalg.eigvals(A)
-            if show_steps: print("eigenvalues\n", eigenvalues)
-            omega = np.sort(-np.imag(np.log(eigenvalues)/Dt))
-            if show_steps: print("omega =", omega)
-            E_0 = omega[0]
+        if k < 1: continue
+        temp = make_hankel(s_ks[:,:k+1])
+        X = temp[:,:-1]
+        Xprime = temp[:,1:]
+        if show_steps: print("X"); print_matrix(X)
+        if show_steps: print("Xprime") ; print_matrix(Xprime)
+        U, S, Vh = svd(X, full_matrices=False)
+        r = np.sum(S > svd_threshold * S[0]) # Rank truncation
+        U = U[:, :r]
+        if show_steps: print("singular values:", S)
+        S = S[:r]
+        if show_steps: print("filtered singular values:", S)
+        V = Vh[:r, :].conj().T
+        S_inv = np.diag(1/S)
+        A = U.conj().T @ Xprime @ V @ S_inv # atilde from ROEL_ODMD
+        # print(np.linalg.matrix_rank(A))
+        if show_steps: print("A"); print_matrix(A)  
+        eigenvalues = np.linalg.eigvals(A)
+        if show_steps: print("eigenvalues\n", eigenvalues)
+        omega = np.sort(-np.imag(np.log(eigenvalues)/Dt))
+        if show_steps: print("omega =", omega)
+        E_0 = omega[0]
         obs = k+1
         if full_observable: obs *= 2
         observables.append(obs)

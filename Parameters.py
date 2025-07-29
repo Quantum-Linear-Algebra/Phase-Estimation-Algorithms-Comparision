@@ -40,7 +40,7 @@ def check(parameters):
                           'max_queries', 'r_scaling', 'const_obs', 'reruns', 'sv', 'shots']
         parameters['max_T'] = float(parameters['max_T'])
         assert(parameters['max_T']>0)
-        if parameters['comp_type'] == 'C' or 'shots' not in parameters: parameters['shots'] = 1
+        if 'shots' not in parameters: parameters['shots'] = 1 # parameters['comp_type'] == 'C' or 
         if parameters['comp_type'] == 'C' or 'reruns' not in parameters: parameters['reruns'] = 1
         if parameters['system'] == 'TFI':
             used_variables.append('g')
@@ -189,7 +189,7 @@ def check(parameters):
     parameters['time_series'] = {}
     for algo in parameters['algorithms']:
         algo_params = parameters['algorithms'][algo]
-        # print(algo, algo_params)
+        print(algo, algo_params)
         if 'T' in algo_params:
             T = algo_params['T']
         else:
@@ -199,7 +199,7 @@ def check(parameters):
             shots = algo_params['shots']
         else:
             shots = parameters['shots']
-        
+            
         if 'full_observable' in algo_params:
             full_observable = algo_params['full_observable']
         else:
@@ -247,7 +247,7 @@ def check(parameters):
         parameters['backend'] = AerSimulator(noise_model = NoiseModel())
     
     print('Parameters are setup:')
-    for key in parameters.keys():
+    for key in parameters:
         print('  '+key+':', parameters[key])
     print()
     return returns
