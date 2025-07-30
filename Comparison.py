@@ -50,12 +50,12 @@ parameters['shots']         = 10**2
 parameters['max_queries']   = 500 * 10**2
 # parameters['num_time_sims'] = 1
 # parameters['num_obs_sims']  = 1
-parameters['reruns']        = 10
+parameters['reruns']        = 5
 
 # NOTE: any parameters not filled out correctly will be set to default values (check displayed parameters)
 parameters['algorithms']    = {}
 
-parameters['algorithms']['ODMD'] = {}
+# parameters['algorithms']['ODMD'] = {}
 # parameters['algorithms']['ODMD']['svd_threshold']   = 10**-1
 # parameters['algorithms']['ODMD']['full_observable'] = True
 
@@ -77,16 +77,17 @@ parameters['algorithms']['ODMD'] = {}
 # parameters['algorithms']['ML_QCELS'] = {}
 # parameters['algorithms']['ML_QCELS']['time_steps']    = 5
 
-# parameters['algorithms']['QMEGS'] = {}
-# parameters['algorithms']['QMEGS']['sigma']            = 1
-# parameters['algorithms']['QMEGS']['q']                = 0.05
-# parameters['algorithms']['QMEGS']['alpha']            = 5
-# parameters['algorithms']['QMEGS']['K']                = 2
-# parameters['algorithms']['QMEGS']['full_observable']  = True
-# parameters['algorithms']['QMEGS']['T']                = 10000
+parameters['algorithms']['QMEGS'] = {}
+parameters['algorithms']['QMEGS']['sigma']            = 1
+parameters['algorithms']['QMEGS']['q']                = 0.05
+parameters['algorithms']['QMEGS']['alpha']            = 5
+parameters['algorithms']['QMEGS']['K']                = 2
+parameters['algorithms']['QMEGS']['full_observable']  = True
+parameters['algorithms']['QMEGS']['T']                = 100000
+parameters['algorithms']['QMEGS']['queries']          = 1000 * 10**2
 
 if __name__ == "__main__":
     returns = param.check(parameters)
-    # data.run(parameters, returns)
-    # algo.run(parameters, skipping=10)
+    data.run(parameters, returns)
+    algo.run(parameters, skipping=10)
     graph_gen.run(parameters, show_std=True)

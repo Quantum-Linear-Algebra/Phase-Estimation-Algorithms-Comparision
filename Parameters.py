@@ -220,7 +220,12 @@ def check(parameters):
         else:
             full_observable = True 
         
-        obs = parameters['max_queries']//shots # just real 
+        if 'queries' in algo_params:
+            queries = algo_params['queries']
+        else:
+            queries = parameters['max_queries']
+        
+        obs = queries//shots # just real 
         if full_observable:
             obs //= 2 # real and imaginary
 
