@@ -235,13 +235,14 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             for algo in parameters['algorithms']:
                 color = colors[algo]
                 std_exp_vals = []
-                T = parameters['final_times'][-1]
+                T = max(all_est_E_0s[algo])
                 for i in range(len(all_est_E_0s[algo][T][0])):
                     tmp = []
                     for r in range(reruns):
                         tmp.append(all_est_E_0s[algo][T][r][i])
                     std_exp_vals.append(np.std(tmp))
-                plt.fill_between(all_queries[algo], avg_E_0s[algo][T]-std_exp_vals, avg_E_0s[algo][T]+std_exp_vals, color=color, alpha=0.2)
+                print(all_queries[algo][T])
+                plt.fill_between(all_queries[algo][T], avg_E_0s[algo][T]-std_exp_vals, avg_E_0s[algo][T]+std_exp_vals, color=color, alpha=0.2)
 
         eigs = np.linalg.eigvals(H)
         eigs = np.sort([(eig.real-parameters['shifting'])*parameters['r_scaling'] for eig in eigs])
@@ -282,8 +283,8 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                     avg_err.append(np.average(temp))
                     std_err.append(np.std(temp))
 
-                plt.plot(all_est_E_0s[algo].keys(), avg_err, c = color, marker = shape, label = algo)
-                if show_std: plt.fill_between(parameters['final_times'], np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
+                plt.plot(list(all_est_E_0s[algo].keys()), avg_err, c = color, marker = shape, label = algo)
+                if show_std: plt.fill_between(list(all_est_E_0s[algo].keys()), np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
 
             plt.plot([0,parameters['max_T']], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
             if max_itr != -1: plt.xlim([0, max_itr])

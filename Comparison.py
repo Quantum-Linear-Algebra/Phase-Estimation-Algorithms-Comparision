@@ -28,7 +28,7 @@ parameters['overlap']      = 1   # the initial state overlap
 parameters['system'] = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
-parameters['g']                = 0 # magnetic field strength (TFIM)
+parameters['g']                = 4 # magnetic field strength (TFIM)
 parameters['method_for_model'] = 'Q' # OPTIONS: F3C, Qiskit
 parameters['trotter']          = 10 # only used with method_for_model = F3C
 
@@ -45,9 +45,9 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # General Algorithm Paramters
-parameters['max_T']         = 500
+parameters['max_T']         = 250
 parameters['shots']         = 10**2
-parameters['max_queries']   = 100 * 10**2
+parameters['max_queries']   = 500 * 10**2
 # parameters['num_time_sims'] = 1
 # parameters['num_obs_sims']  = 1
 parameters['reruns']        = 10
@@ -56,24 +56,23 @@ parameters['reruns']        = 10
 parameters['algorithms']    = {}
 
 parameters['algorithms']['ODMD'] = {}
-parameters['algorithms']['ODMD']['svd_threshold']   = 10**-1
-parameters['algorithms']['ODMD']['full_observable'] = False
+# parameters['algorithms']['ODMD']['svd_threshold']   = 10**-1
+# parameters['algorithms']['ODMD']['full_observable'] = True
 
-parameters['algorithms']['FDODMD'] = {}
-parameters['algorithms']['FDODMD']['svd_threshold']   = 10**-1
-parameters['algorithms']['FDODMD']['full_observable'] = True
-parameters['algorithms']['FDODMD']['gamma_range']     = (1,4) # (min, max)
-parameters['algorithms']['FDODMD']['filter_count']    = 4
-parameters['algorithms']['FDODMD']['full_observable'] = False
+# parameters['algorithms']['FDODMD'] = {}
+# parameters['algorithms']['FDODMD']['svd_threshold']   = 10**-1
+# parameters['algorithms']['FDODMD']['full_observable'] = True
+# parameters['algorithms']['FDODMD']['gamma_range']     = (1,4) # (min, max)
+# parameters['algorithms']['FDODMD']['filter_count']    = 4
 
+# parameters['algorithms']['VQPE'] = {}
+# parameters['algorithms']['VQPE']['svd_threshold']     = 10**-1
+# parameters['algorithms']['VQPE']['T']                 = 40
 
-parameters['algorithms']['VQPE'] = {}
-parameters['algorithms']['VQPE']['svd_threshold']     = 10**-1
+# parameters['algorithms']['UVQPE'] = {}
+# parameters['algorithms']['UVQPE']['svd_threshold']    = 10**-1
 
-parameters['algorithms']['UVQPE'] = {}
-parameters['algorithms']['UVQPE']['svd_threshold']    = 10**-1
-
-parameters['algorithms']['QCELS'] = {}
+# parameters['algorithms']['QCELS'] = {}
 
 # parameters['algorithms']['ML_QCELS'] = {}
 # parameters['algorithms']['ML_QCELS']['time_steps']    = 5
@@ -83,13 +82,11 @@ parameters['algorithms']['QCELS'] = {}
 # parameters['algorithms']['QMEGS']['q']                = 0.05
 # parameters['algorithms']['QMEGS']['alpha']            = 5
 # parameters['algorithms']['QMEGS']['K']                = 2
-# parameters['algorithms']['QMEGS']['full_observable']  = False
-# parameters['algorithms']['QMEGS']['T']                = 100000
-
-
+# parameters['algorithms']['QMEGS']['full_observable']  = True
+# parameters['algorithms']['QMEGS']['T']                = 10000
 
 if __name__ == "__main__":
     returns = param.check(parameters)
-    data.run(parameters, returns)
-    algo.run(parameters, skipping=1000)
-    graph_gen.run(parameters, show_std=False)
+    # data.run(parameters, returns)
+    # algo.run(parameters, skipping=10)
+    graph_gen.run(parameters, show_std=True)
