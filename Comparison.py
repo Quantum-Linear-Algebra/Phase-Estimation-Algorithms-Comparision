@@ -28,12 +28,12 @@ parameters['overlap']      = 1   # the initial state overlap
 parameters['system'] = 'TFI' # OPTIONS: TFIM, SPIN, HUBBARD, H_2
 
 # Transverse Field Ising Model Parameters
-parameters['g']                = 10 # magnetic field strength (TFIM)
+parameters['g']                = 0 # magnetic field strength (TFIM)
 parameters['method_for_model'] = 'Q' # OPTIONS: F3C, Qiskit
 parameters['trotter']          = 10 # only used with method_for_model = F3C
 
 # Spin Model Parameters
-parameters['J'] = 4 # coupling strength (SPIN)
+parameters['J'] = 0 # coupling strength (SPIN)
 
 # Hubbard Parameters
 parameters['t'] = 1 # left-right hopping (HUBB)
@@ -45,9 +45,9 @@ parameters['y'] = 1 # y size of latice (HUBB)
 parameters['distance'] = .5
 
 # General Algorithm Paramters
-parameters['max_queries']   = 100 * 10**0
 parameters['max_T']         = 500
-parameters['shots']         = 10**0
+parameters['shots']         = 10**2
+parameters['max_queries']   = 100 * 10**2
 # parameters['num_time_sims'] = 1
 # parameters['num_obs_sims']  = 1
 parameters['reruns']        = 10
@@ -78,13 +78,13 @@ parameters['algorithms']['QCELS'] = {}
 # parameters['algorithms']['ML_QCELS'] = {}
 # parameters['algorithms']['ML_QCELS']['time_steps']    = 5
 
-parameters['algorithms']['QMEGS'] = {}
-parameters['algorithms']['QMEGS']['sigma']            = 1
-parameters['algorithms']['QMEGS']['q']                = 0.05
-parameters['algorithms']['QMEGS']['alpha']            = 5
-parameters['algorithms']['QMEGS']['K']                = 2
-parameters['algorithms']['QMEGS']['full_observable']  = False
-parameters['algorithms']['QMEGS']['T']                = 100000
+# parameters['algorithms']['QMEGS'] = {}
+# parameters['algorithms']['QMEGS']['sigma']            = 1
+# parameters['algorithms']['QMEGS']['q']                = 0.05
+# parameters['algorithms']['QMEGS']['alpha']            = 5
+# parameters['algorithms']['QMEGS']['K']                = 2
+# parameters['algorithms']['QMEGS']['full_observable']  = False
+# parameters['algorithms']['QMEGS']['T']                = 100000
 
 
 

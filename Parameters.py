@@ -2,6 +2,7 @@ from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from scipy.linalg import eigh
 from numpy import ceil, sqrt, zeros, log10, floor, abs, random, linspace
+from scipy.linalg import norm
 from Service import create_hardware_backend
 from sys import exit
 import pickle
@@ -83,7 +84,21 @@ def check(parameters):
         energy,eig_vec = eigh(H)
         if 'overlap' in parameters:
             used_variables.append('overlap')
-            parameters['sv'] = make_overlap(eig_vec[:,0], parameters['overlap'])
+            if parameters['system'] == 'TFI':
+                if parameters['g']< 1:
+                    # GHZ state
+                    sv = [0]*2**parameters['sites']
+                    sv[0] = 1
+                    sv[-1] = 1
+                    sv = sv/norm(sv)
+                else:
+                    # construct even superposition
+                    sv = [1]*2**parameters['sites']
+                    sv = sv/norm(sv)
+            else:
+                sv = make_overlap(eig_vec[:,0], parameters['overlap'])
+            print(sv)
+            parameters['sv'] = sv
         elif 'distribution' in parameters:
             used_variables.append('distribution')
             parameters['sv'] = zeros(len(eig_vec[:,0]), dtype=complex)

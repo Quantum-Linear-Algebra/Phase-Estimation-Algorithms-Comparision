@@ -22,14 +22,14 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
     fourier_filtering = 'FDODMD' in parameters['algorithms']
     # Dt = parameters['T']/parameters['observables']
 
-    if 'overlap' in parameters:
-        spectrum_string = 'overlap='+str(parameters['overlap'])
-    elif 'distribution' in parameters:
-        spectrum_string = 'distribution='
-        for i in parameters['distribution'][:3][:-1]:
-            spectrum_string+=f'{i:0.2},'
-        var = parameters['distribution'][3]
-        spectrum_string +=f'{var:0.2}...'
+    # if 'overlap' in parameters:
+    #     spectrum_string = 'overlap='+str(parameters['overlap'])
+    # elif 'distribution' in parameters:
+    #     spectrum_string = 'distribution='
+    #     for i in parameters['distribution'][:3][:-1]:
+    #         spectrum_string+=f'{i:0.2},'
+    #     var = parameters['distribution'][3]
+    #     spectrum_string +=f'{var:0.2}...'
     
     if fourier_filtering:
         gamma_range = parameters['algorithms']['FDODMD']['gamma_range']
@@ -123,7 +123,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         plt.legend()
         plt.xlabel('Time')
         plt.ylabel('Expectation Value')
-        plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
+        plt.title('Expectation Value with Dt='+str(Dt))
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'_Expectation_Value.pdf', bbox_inches='tight')
         plt.show()
         
@@ -136,7 +136,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         plt.legend()
         plt.xlabel('Frequency')
         plt.ylabel('Amplitude')
-        plt.title('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
+        plt.title('Fourier Transform of Expectation Value with Dt='+str(Dt))
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Fourier_Transform_Expectation_Value.pdf', bbox_inches='tight')
         plt.show()
 
@@ -152,7 +152,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
             plt.ylabel('Time')
             ax.set_zlabel('Expectation Value')
             plt.xlabel('gamma')
-            plt.title('Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
+            plt.title('Expectation Value with Dt='+str(Dt))
             plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots=True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Expectation_Value.pdf')
             plt.show()
             
@@ -170,7 +170,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                     axes[j//5][j%5].plot(fftshift(fftfreq(len(single_ff_exp_vals), d=Dt)), abs(fftshift(fft(single_ff_exp_vals))))
                     if j//5==0: axes[j//5][j%5].set_ylabel('Amplitute')
                     axes[j//5][j%5].set_xlabel('Frequency')
-            fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(Dt)+' with '+spectrum_string)
+            fig.suptitle('Fourier Transform of Expectation Value with Dt='+str(Dt))
             fig.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'gamma='+str(gamma_range[0])+'-'+str(gamma_range[1])+'filters='+str(filters)+'_Fourier_Transform_Expectation_Value.pdf', bbox_inches='tight')
             fig.show()
     
@@ -209,7 +209,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
                 if show_std: plt.fill_between(queries, np.array(avg_err)-np.array(std_err), np.array(avg_err)+np.array(std_err), color=color, alpha=0.2)
         plt.plot([0,longest_query], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
         if max_itr != -1: plt.xlim([0, max_itr])
-        plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
+        plt.title('Convergence Absolute Error in Energy for '+parameters['system'])
         plt.ylabel('Absolute Error')
         plt.xlabel('Total Queries')
         plt.legend()
@@ -255,7 +255,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
         # dis = (eigs[2]-eigs[0])/2
         # plt.ylim(eigs[0]-dis, eigs[2]+dis)
         # plt.ylim(eigs[0] - 0.1, eigs[0] + 0.1)
-        plt.title('Convergence in Energy for '+parameters['system']+' with '+spectrum_string)
+        plt.title('Convergence in Energy for '+parameters['system'])
         plt.ylabel('Eigenvalue')
         plt.savefig('2-Graphing/Graphs/'+make_filename(parameters, add_shots =True)+'_Convergence_Queries.pdf', bbox_inches='tight')
         plt.show()
@@ -287,7 +287,7 @@ def run(parameters, max_itr=-1, skipping=1, show_std=False):
 
             plt.plot([0,parameters['max_T']], [10**-3, 10**-3], label = 'Chemical Accuracy', c = 'black')
             if max_itr != -1: plt.xlim([0, max_itr])
-            plt.title('Convergence Absolute Error in Energy for '+parameters['system']+' with '+spectrum_string)
+            plt.title('Convergence Absolute Error in Energy for '+parameters['system'])
             plt.ylabel('Absolute Error')
             plt.xlabel('Total Evolution Time')
             plt.legend()

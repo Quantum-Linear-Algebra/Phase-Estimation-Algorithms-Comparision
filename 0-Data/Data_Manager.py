@@ -7,7 +7,7 @@ from Parameters import make_filename
 sys.path.append('./1-Algorithms/Algorithms')
 
 import subprocess, os, numpy as np
-from scipy.linalg import expm, eigh, svd
+from scipy.linalg import expm, eigh, svd, norm
 from scipy.fft import fft, ifft
 
 from qiskit import transpile
@@ -272,7 +272,7 @@ def run_hadamard_tests(controlled_U, statevector, W = 'Re', shots=100):
     exp_val = calculate_exp_vals(counts, shots)
     return exp_val
 
-def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = 'Re', modified=False):
+def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = 'Re', modified=True):
     '''
     Creates a transpiled hadamard tests for the specificed backend.
 
@@ -294,7 +294,7 @@ def create_hadamard_tests(parameters, backend, U:UnitaryGate, statevector, W = '
     qc.h(qr_ancilla)
     if modified:
         qc_init = QuantumCircuit(qr_ancilla, qr_eigenstate)
-        if False:# parameters['system'] == 'TFI':
+        if parameters['system'] == 'TFI':
             if parameters['g'] < 1:
                 # construct GHZ state
                 qc_init.ch(qr_ancilla,qr_eigenstate[0])
